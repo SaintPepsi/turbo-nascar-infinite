@@ -1,7 +1,6 @@
 # 🦅 TURBO NASCAR INFINITE
 
-![100% AI generated](https://img.shields.io/badge/100%25-AI_GENERATED-d62828?labelColor=0b1c4d)
-![model](https://img.shields.io/badge/Claude-Fable_5-ffd24a?labelColor=0b1c4d)
+[![100% AI generated](https://img.shields.io/badge/100%25_AI_generated-Fable_5-d97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
 
 **▶ PLAY IT: https://saintpepsi.github.io/turbo-nascar-infinite/**
 
