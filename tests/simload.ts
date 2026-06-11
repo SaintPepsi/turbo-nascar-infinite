@@ -9,6 +9,16 @@ export interface Meta {
   bestRound: number;
   deaths: number;
   muted: boolean;
+  stats: Record<string, number>;
+  ach: Record<string, boolean>;
+}
+
+export interface Achievement {
+  id: string;
+  name: string;
+  desc: string;
+  fp: number;
+  test(m: Meta): boolean;
 }
 
 export interface BotProfile {
@@ -46,6 +56,7 @@ export interface RunState {
   kills: number;
   dead: boolean;
   cause: string;
+  turkeys: Array<{ s: number; d: number }>;
   [k: string]: unknown;
 }
 
@@ -56,6 +67,12 @@ export interface RunSummary {
   kills: number;
   fp: number;
   cause: string;
+  driftT: number;
+  turkeys: number;
+  slams: number;
+  scrapes: number;
+  killsBy: Record<string, number>;
+  used: Record<string, number>;
 }
 
 export interface SimEvent {
@@ -113,6 +130,9 @@ export interface SimCoreApi {
   botInput(st: RunState, p: BotProfile, mem: Record<string, number>): SimInput;
   simulateRun(m: Meta, seed: number, p: BotProfile | null, maxTime?: number): RunSummary;
   autoSpend(m: Meta, fp: number): Meta;
+  ACHIEVEMENTS: Achievement[];
+  checkAchievements(m: Meta): Achievement[];
+  absorbRun(m: Meta, r: RunSummary): void;
 }
 
 const htmlPath = new URL("../index.html", import.meta.url);

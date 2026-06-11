@@ -51,6 +51,9 @@ kbd{background:#fff;color:#111;border-radius:5px;padding:1px 7px;font-family:inh
 .buy{width:100%;font:inherit;font-size:13px;background:#1c8a3c;color:#fff;border:2px solid #9fffc1;border-radius:8px;padding:5px;cursor:pointer;font-style:italic}
 .buy:disabled{background:#333c5c;border-color:#556;color:#8b96bd;cursor:default}
 .up.maxed .buy{background:#7a5f00;border-color:var(--gold);color:var(--gold)}
+.up.lockedach{filter:grayscale(1) brightness(.55)}
+#deathAch{display:flex;flex-direction:column;gap:4px;max-height:24vh;overflow:auto;font-size:15px;font-style:italic;color:var(--gold)}
+#deathAch div{text-shadow:2px 2px 0 #000}
 /* HUD */
 #hud{position:fixed;inset:0;pointer-events:none;z-index:5}
 .roundbadge{position:absolute;top:14px;left:16px;background:var(--red);border:4px solid #fff;border-radius:14px;padding:6px 16px;font-size:26px;font-style:italic;box-shadow:0 5px 0 rgba(0,0,0,.4)}
@@ -117,8 +120,10 @@ h2.sub{font-size:30px;font-style:italic;color:var(--gold);text-shadow:3px 3px 0 
   <div class="logo"><div class="l1">TURBO</div><div class="l2">NASCAR</div><div class="l3">★ INFINITE ★</div></div>
   <div class="tag">100% american made · est. round 1</div>
   <div class="press">PRESS <kbd>ENTER</kbd> TO RACE</div>
-  <div class="btnrow"><button class="btn" id="bGarage">Garage</button><button class="btn" id="bKart">Karts</button></div>
+  <div class="btnrow"><button class="btn" id="bGarage">Garage</button><button class="btn" id="bKart">Karts</button><button class="btn" id="bAch">Trophies (A)</button></div>
   <div class="small" id="titleStats"></div>
+  <div class="small">⚠ THE PACK hunts you from behind — stay fast or be consumed ⚠</div>
+  <div class="small">⭐ Rohan — AI Trailblazer · Luke — AI Sherrif · Nick — AI Connosouir ⭐</div>
   <div class="small">drive <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> · abilities <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd><kbd>T</kbd> · mute <kbd>M</kbd> · pause <kbd>ESC</kbd></div>
 </div>
 
@@ -142,7 +147,16 @@ h2.sub{font-size:30px;font-style:italic;color:var(--gold);text-shadow:3px 3px 0 
   <div id="deathTitle">WRECKED!</div>
   <div id="wreckedBy"></div>
   <div class="tally" id="tally"></div>
+  <div id="deathAch"></div>
   <div class="btnrow"><button class="btn primary" id="bGarage2">Garage (G)</button><button class="btn" id="bRetry">Retry (R)</button><button class="btn" id="bTitle">Title (T)</button></div>
+</div>
+
+<div id="achievements" class="screen hidden">
+  <div class="stars"></div>
+  <h2 class="sub">🏆 WALL OF FREEDOM 🏆</h2>
+  <div class="fpbig" id="achCount"></div>
+  <div class="grid" id="achGrid"></div>
+  <div class="btnrow"><button class="btn" id="bBack3">Back (ESC)</button></div>
 </div>
 
 <div id="pause" class="screen overlay hidden"><h2 class="sub">FREEDOM IS PAUSED</h2><div class="press">PRESS <kbd>ESC</kbd> TO RESUME</div></div>
@@ -159,8 +173,8 @@ const SimCore = (() => {
     topSpeed: 62, accel: 26, brake: 55, drag: 6.5, reverseMax: -12, reverseAccel: 9,
     steerRate: 2.4, align: 3.0, latDamp: 2.0, slideFactor: 1.35, bankF: 0.45,
     grip: 15, hpBase: 100, wallMargin: 6.9, scrapeDps: 9, slamThresh: 6, slamScale: 1.9,
-    packBase: 34, packGrowth: 1.065, packGap0: 260, packLeash: 400, packDps: 32, packContact: 6,
-    trafBase: 3, trafPerRound: 1.4, trafCap: 26, trafVMin: 26, trafVMax: 41, trafHitSlow: 0.45,
+    packBase: 34, packGrowth: 1.065, packGap0: 185, packLeash: 400, packDps: 32, packContact: 6,
+    trafBase: 4, trafPerRound: 1.5, trafCap: 26, trafVMin: 26, trafVMax: 41, trafHitSlow: 0.45,
     fpDist: 0.03, fpRound: 15, fpRoundExp: 1.5, fpKill: 6, fpDrift: 0.5, fpPity: 25,
   };
 
@@ -228,17 +242,15 @@ const SimCore = (() => {
   ];
   const WEAPON_KEYS = { wrocket: "q", wgun: "w", wmine: "e", weagle: "r", wturbo: "t" };
   const CONDITIONS = [
-    { round: 2, id: "traffic", name: "RUSH HOUR" },
-    { round: 3, id: "oil", name: "SLICK CITY" },
-    { round: 4, id: "traffic2", name: "MORE CARS, MORE PROBLEMS" },
-    { round: 5, id: "night", name: "NIGHT SHIFT" },
-    { round: 6, id: "anthem", name: "MAXIMUM GLORY" },
-    { round: 7, id: "rain", name: "GOD'S TEARS" },
-    { round: 8, id: "rage", name: "ROAD RAGE" },
-    { round: 9, id: "wind", name: "TORNADO WATCH" },
-    { round: 10, id: "meteor", name: "SPACE DEBRIS" },
-    { round: 11, id: "oil2", name: "DOUBLE SLICK" },
-    { round: 12, id: "unleashed", name: "AMERICA UNLEASHED" },
+    { round: 2, id: "turkey", name: "TURKEY CROSSING" },
+    { round: 3, id: "traffic2", name: "MORE CARS, MORE PROBLEMS" },
+    { round: 4, id: "night", name: "NIGHT SHIFT" },
+    { round: 5, id: "rain", name: "GOD'S TEARS" },
+    { round: 6, id: "rage", name: "ROAD RAGE" },
+    { round: 7, id: "wind", name: "TORNADO WATCH" },
+    { round: 8, id: "meteor", name: "SPACE DEBRIS" },
+    { round: 9, id: "oil2", name: "DOUBLE SLICK" },
+    { round: 10, id: "unleashed", name: "AMERICA UNLEASHED" },
   ];
   const UNHINGED = [
     "THE ASPHALT IS ANGRY", "MORE EAGLES THAN PHYSICS ALLOWS", "NASCAR PRIME",
@@ -251,19 +263,29 @@ const SimCore = (() => {
   }
 
   // --- META / ECONOMY ---
-  const SAVE_V = 1;
+  const SAVE_V = 2;
   function makeMeta() {
-    return { v: SAVE_V, fp: 0, upgrades: {}, karts: ["patriot"], kart: "patriot", bestRound: 0, deaths: 0, muted: false };
+    return { v: SAVE_V, fp: 0, upgrades: {}, karts: ["patriot"], kart: "patriot", bestRound: 0, deaths: 0, muted: false, stats: {}, ach: {} };
   }
-  function serializeMeta(m) { return JSON.stringify(m); }
   function parseMeta(str) {
     if (!str) return makeMeta();
     try {
       const m = JSON.parse(str);
-      if (!m || m.v !== SAVE_V || typeof m.fp !== "number" || !m.upgrades || !Array.isArray(m.karts)) return makeMeta();
+      if (!m || typeof m.fp !== "number" || !m.upgrades || !Array.isArray(m.karts)) return makeMeta();
+      if (m.v === 1) {
+        const up = { ...makeMeta(), fp: m.fp, upgrades: m.upgrades, karts: m.karts, kart: m.kart, bestRound: m.bestRound || 0, deaths: m.deaths || 0, muted: !!m.muted };
+        up.stats = { deaths: m.deaths || 0, maxRound: m.bestRound || 0, kartsOwned: m.karts.length };
+        return up;
+      }
+      if (m.v !== SAVE_V) return makeMeta();
+      if (!m.stats) m.stats = {};
+      if (!m.ach) m.ach = {};
       return m;
     } catch (_) { return makeMeta(); }
   }
+  function serializeMeta(m) { return JSON.stringify(m); }
+  const statOf = (m, k) => (m.stats && m.stats[k]) || 0;
+  const bump = (m, k, n) => { m.stats[k] = statOf(m, k) + n; };
   function upgradeOf(id) { return UPGRADES.find((u) => u.id === id); }
   function costOf(id, level) {
     const u = upgradeOf(id);
@@ -278,6 +300,7 @@ const SimCore = (() => {
     if (m.fp < cost) return false;
     m.fp -= cost;
     m.upgrades[id] = lvl + 1;
+    if (m.stats) bump(m, "purchases", 1);
     return true;
   }
   function buyKart(m, id) {
@@ -286,6 +309,7 @@ const SimCore = (() => {
     m.fp -= k.cost;
     m.karts.push(id);
     m.kart = id;
+    if (m.stats) m.stats.kartsOwned = m.karts.length;
     return true;
   }
   function derived(m) {
@@ -337,8 +361,9 @@ const SimCore = (() => {
       stat: dv, tiers: dv.tiers,
       cd: { q: 0, w: 0, e: 0, r: 0, t: 0 }, heat: 0, turboT: 0, eagleT: 0,
       traffic: [], shots: [], mines: [], oils: [], meteors: [], meteorT: 0,
-      windT: 0, fx: { slip: 0, scrape: 0, packGap: 999, boost: 0 },
-      condNames: [],
+      turkeys: [], turkeyT: 4, windT: 0, fx: { slip: 0, scrape: 0, packGap: 999, boost: 0 },
+      condNames: [], killsBy: { ram: 0, rocket: 0, gun: 0, eagle: 0, meteor: 0 },
+      turkeyHits: 0, slamCount: 0, scrapeCount: 0, used: { q: 0, w: 0, e: 0, r: 0, t: 0 },
     };
     seedRoundContent(st);
     return st;
@@ -346,11 +371,11 @@ const SimCore = (() => {
   function trafficQuota(round) {
     return Math.min(TUNING.trafCap, Math.floor(TUNING.trafBase + TUNING.trafPerRound * (round - 1)));
   }
-  function intensity(round) { return round >= 12 ? 1 + 0.06 * (round - 12) : 1; }
+  function intensity(round) { return round >= 10 ? 1 + 0.06 * (round - 10) : 1; }
   function seedRoundContent(st) {
     const r = st.round;
-    if (r >= 3) {
-      const n = Math.min(10, (r >= 11 ? 4 : 2) + Math.floor((r - 3) / 2));
+    if (r >= 2) {
+      const n = Math.min(10, (r >= 9 ? 4 : 2) + Math.floor((r - 2) / 2));
       st.oils = [];
       for (let i = 0; i < n; i++) st.oils.push({ s: st.rng() * TRACK.length, d: (st.rng() * 2 - 1) * 5.5, r: 3 });
     }
@@ -359,7 +384,7 @@ const SimCore = (() => {
   function roundName(r) {
     const c = CONDITIONS.find((x) => x.round === r);
     if (c) return c.name;
-    if (r > 12) return UNHINGED[(r - 13) % UNHINGED.length] + (r > 21 ? " ×" + Math.floor((r - 13) / 9 + 1) : "");
+    if (r > 10) return UNHINGED[(r - 11) % UNHINGED.length] + (r > 19 ? " ×" + Math.floor((r - 11) / 9 + 1) : "");
     return "GREEN FLAG";
   }
   function spawnTraffic(st) {
@@ -393,6 +418,7 @@ const SimCore = (() => {
   function killTraffic(st, i, events, via) {
     st.traffic.splice(i, 1);
     st.kills++;
+    if (st.killsBy[via] !== undefined) st.killsBy[via]++;
     events.push({ type: "kill", via, fp: TUNING.fpKill });
   }
 
@@ -402,7 +428,7 @@ const SimCore = (() => {
     st.time += dt;
     const T = TUNING;
     const turbo = st.turboT > 0;
-    const gripRain = st.round >= 7 ? 0.85 : 1;
+    const gripRain = st.round >= 5 ? 0.85 : 1;
     let grip = st.stat.grip * gripRain * (turbo && st.tiers.t >= 3 ? 1.25 : 1);
     const top = st.stat.topSpeed * (turbo ? 1.32 : 1);
     const accel = st.stat.accel * (turbo ? 1.5 : 1);
@@ -437,8 +463,8 @@ const SimCore = (() => {
     st.d += (st.v * Math.sin(st.rel) + st.latV) * dt;
     if (Math.abs(st.latV) > 1.8 || excess > 1) st.driftT += dt;
 
-    // wind (round 9+)
-    if (st.round >= 9) {
+    // wind (round 7+)
+    if (st.round >= 7) {
       st.windT += dt;
       st.d += Math.sin(st.windT * 0.7) * 1.6 * intensity(st.round) * dt;
     }
@@ -450,12 +476,13 @@ const SimCore = (() => {
       const impact = Math.abs(st.latV) + Math.abs(st.v * Math.sin(st.rel));
       if (impact > T.slamThresh) {
         hurt(st, 6 + (impact - T.slamThresh) * T.slamScale, "wall", events, "slam");
+        st.slamCount++;
         st.latV *= -0.35; st.rel *= 0.3; st.v *= 0.82;
       } else {
         st.fx.scrape += dt;
         st.v *= 1 - 0.4 * dt;
         hurt(st, T.scrapeDps * dt, "wall", events, null);
-        if (st.fx.scrape > 0.25) { st.fx.scrape = 0; events.push({ type: "scrape" }); }
+        if (st.fx.scrape > 0.25) { st.fx.scrape = 0; st.scrapeCount++; events.push({ type: "scrape" }); }
       }
     }
 
@@ -487,9 +514,31 @@ const SimCore = (() => {
       st.fx.packHit = true;
     } else st.fx.packHit = false;
 
+    // turkeys (round 2+): they cross the road. they do not look both ways.
+    if (st.round >= 2) {
+      st.turkeyT -= dt;
+      if (st.turkeyT <= 0) {
+        st.turkeyT = (5 + st.rng() * 4) / intensity(st.round);
+        const dir = st.rng() < 0.5 ? 1 : -1;
+        st.turkeys.push({ s: (st.s + 70 + st.rng() * 90) % TRACK.length, d: -8.4 * dir, dir, v: 3.5 + st.rng() * 3 });
+      }
+    }
+    for (let i = st.turkeys.length - 1; i >= 0; i--) {
+      const tk = st.turkeys[i];
+      tk.d += tk.dir * tk.v * dt;
+      if (Math.abs(tk.d) > 8.6 && Math.sign(tk.d) === tk.dir) { st.turkeys.splice(i, 1); continue; }
+      if (Math.abs(wrapDelta(tk.s, st.s)) < 2.6 && Math.abs(tk.d - st.d) < 1.6 && Math.abs(st.v) > 4) {
+        st.turkeys.splice(i, 1);
+        st.turkeyHits++;
+        hurt(st, 6, "turkey", events, null);
+        st.v *= 0.8;
+        events.push({ type: "turkey", s: tk.s, d: tk.d });
+      }
+    }
+
     // traffic
     spawnTraffic(st);
-    const wander = st.round >= 8;
+    const wander = st.round >= 6;
     for (let i = st.traffic.length - 1; i >= 0; i--) {
       const c = st.traffic[i];
       c.s = ((c.s + c.v * dt) % TRACK.length + TRACK.length) % TRACK.length;
@@ -510,6 +559,7 @@ const SimCore = (() => {
     // Q rocket
     if (input.q && st.tiers.q > 0 && st.cd.q <= 0) {
       st.cd.q = 6;
+      st.used.q++;
       const n = st.tiers.q >= 3 ? 3 : 1;
       for (let j = 0; j < n; j++) st.shots.push({ s: st.s + 5, d: st.d + (j - (n - 1) / 2) * 2.4, v: Math.max(st.v, 20) + 42, life: 2.2 });
       events.push({ type: "rocket" });
@@ -535,6 +585,7 @@ const SimCore = (() => {
     }
     // W guns
     if (input.w && st.tiers.w > 0 && st.cd.w <= 0) {
+      if (!st.fx.firing) st.used.w++;
       st.heat += dt / 3;
       if (st.heat >= 1) { st.cd.w = 2.5; st.heat = 0; events.push({ type: "overheat" }); }
       let tgt = -1, best = 38;
@@ -551,6 +602,7 @@ const SimCore = (() => {
     // E mine
     if (input.e && st.tiers.e > 0 && st.cd.e <= 0) {
       st.cd.e = 12;
+      st.used.e++;
       st.mines.push({ sTotal: st.sTotal - 4, arm: 0.5 });
       events.push({ type: "mine" });
     }
@@ -566,26 +618,32 @@ const SimCore = (() => {
     // R eagle
     if (input.r && st.tiers.r > 0 && st.cd.r <= 0) {
       st.cd.r = 22;
+      st.used.r++;
       const reach = 40 + 8 * st.tiers.r;
       for (let i = st.traffic.length - 1; i >= 0; i--) {
         const dd = wrapDelta(st.traffic[i].s, st.s);
         if (dd > 4 && dd < reach) killTraffic(st, i, events, "eagle");
+      }
+      for (let i = st.turkeys.length - 1; i >= 0; i--) {
+        const dd = wrapDelta(st.turkeys[i].s, st.s);
+        if (dd > 4 && dd < reach) { st.turkeys.splice(i, 1); st.turkeyHits++; events.push({ type: "turkey", eaten: true }); }
       }
       events.push({ type: "eagle", reach });
     }
     // T turbo
     if (input.t && st.tiers.t > 0 && st.cd.t <= 0) {
       st.cd.t = 11;
+      st.used.t++;
       st.turboT = 3 + 0.5 * st.tiers.t;
       events.push({ type: "turbo" });
     }
     st.fx.boost = st.turboT > 0 ? 1 : 0;
 
-    // meteors (round 10+)
-    if (st.round >= 10) {
+    // meteors (round 8+)
+    if (st.round >= 8) {
       st.meteorT -= dt;
       if (st.meteorT <= 0) {
-        st.meteorT = Math.max(1.6, 5 - 0.25 * (st.round - 10)) / intensity(st.round);
+        st.meteorT = Math.max(1.6, 5 - 0.25 * (st.round - 8)) / intensity(st.round);
         st.meteors.push({ s: (st.s + 60 + st.rng() * 140) % TRACK.length, d: (st.rng() * 2 - 1) * 6, t: 1.2 });
         events.push({ type: "meteorWarn" });
       }
@@ -658,6 +716,14 @@ const SimCore = (() => {
     }
     return input;
   }
+  function summarize(st, m) {
+    return {
+      rounds: st.round, time: Math.round(st.time * 10) / 10, dist: Math.round(st.dist),
+      kills: st.kills, fp: fpForRun({ dist: st.dist, rounds: st.round, kills: st.kills, driftT: st.driftT }, m),
+      cause: st.cause || "pack", driftT: Math.round(st.driftT * 10) / 10, turkeys: st.turkeyHits,
+      slams: st.slamCount, scrapes: st.scrapeCount, killsBy: { ...st.killsBy }, used: { ...st.used },
+    };
+  }
   function simulateRun(m, seed, profile, maxTime) {
     const limit = maxTime || 1200;
     const st = makeRun(m, seed);
@@ -670,17 +736,140 @@ const SimCore = (() => {
       if (st.dead) break;
     }
     if (!st.dead) { st.cause = "survived"; }
-    return {
-      rounds: st.round, time: Math.round(st.time * 10) / 10, dist: Math.round(st.dist),
-      kills: st.kills, fp: fpForRun({ dist: st.dist, rounds: st.round, kills: st.kills, driftT: st.driftT }, m),
-      cause: st.cause || "pack",
-    };
+    return summarize(st, m);
+  }
+
+  // --- LIFETIME STATS + ACHIEVEMENTS (the dopamine layer) ---
+  function absorbRun(m, r) {
+    if (!m.stats) m.stats = {};
+    bump(m, "deaths", 1);
+    bump(m, "runs", 1);
+    bump(m, "kills", r.kills);
+    bump(m, "killsRam", (r.killsBy && r.killsBy.ram) || 0);
+    bump(m, "killsRocket", (r.killsBy && r.killsBy.rocket) || 0);
+    bump(m, "killsGun", (r.killsBy && r.killsBy.gun) || 0);
+    bump(m, "killsEagle", (r.killsBy && r.killsBy.eagle) || 0);
+    bump(m, "killsMeteor", (r.killsBy && r.killsBy.meteor) || 0);
+    bump(m, "turkeys", r.turkeys || 0);
+    bump(m, "dist", r.dist);
+    bump(m, "drift", r.driftT || 0);
+    bump(m, "time", r.time);
+    bump(m, "fpEarned", r.fp);
+    bump(m, "slams", r.slams || 0);
+    bump(m, "scrapes", r.scrapes || 0);
+    bump(m, "roundsTotal", r.rounds);
+    bump(m, "usedQ", (r.used && r.used.q) || 0);
+    bump(m, "usedW", (r.used && r.used.w) || 0);
+    bump(m, "usedE", (r.used && r.used.e) || 0);
+    bump(m, "usedR", (r.used && r.used.r) || 0);
+    bump(m, "usedT", (r.used && r.used.t) || 0);
+    bump(m, "death_" + r.cause, 1);
+    if (r.rounds <= 1) bump(m, "r1Deaths", 1);
+    m.stats.maxRound = Math.max(statOf(m, "maxRound"), r.rounds);
+    m.stats.longestRun = Math.max(statOf(m, "longestRun"), r.time);
+    m.stats.fastestDeath = statOf(m, "fastestDeath") > 0 ? Math.min(statOf(m, "fastestDeath"), r.time) : r.time;
+    m.stats.kartsOwned = m.karts.length;
+    m.deaths = statOf(m, "deaths");
+    m.bestRound = Math.max(m.bestRound, r.rounds);
+    m.fp += r.fp;
+  }
+
+  const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX"];
+  const ESCAL = ["RESPECTABLE", "ALARMING", "UNREASONABLE", "ILLEGAL", "BIBLICAL", "COSMIC", "UNCONSTITUTIONAL", "POST-PHYSICS", "FORBIDDEN", "MYTHIC"];
+  function ladder(n, start, growth) {
+    const t = [];
+    let v = start;
+    for (let i = 0; i < n; i++) { t.push(Math.round(v)); v *= growth; }
+    return t;
+  }
+  const FAMILIES = [
+    { stat: "deaths", label: "DEATHS", fpBase: 100, tiers: ladder(20, 1, 1.9), names: ["YOU F*KN DIEDD YEEHAAAW", "DIED AGAIN. STILL PATRIOTIC.", "THIRD TIME'S THE HARM", "FREQUENT DYER PROGRAM", "PUNCH CARD FULL OF DEATH"] },
+    { stat: "runs", label: "RACES STARTED", tiers: ladder(18, 1, 1.95), names: ["GENTLEMEN, START YOUR ENGINE", "BACK FOR MORE", "THIS IS YOUR LIFE NOW"] },
+    { stat: "kills", label: "TRAFFIC REMOVED", tiers: ladder(20, 1, 2), names: ["FIRST BLOOD (VEHICULAR)", "LANE CLEARANCE PERMIT", "TRAFFIC MANAGEMENT EXPERT"] },
+    { stat: "killsRam", label: "RAM KILLS", tiers: ladder(15, 1, 2.2), names: ["TRADING PAINT", "COW BAR ENTHUSIAST"] },
+    { stat: "killsRocket", label: "ROCKET KILLS", tiers: ladder(15, 1, 2.2), names: ["THE ROCKETS' RED GLARE"] },
+    { stat: "killsGun", label: "GUN KILLS", tiers: ladder(15, 1, 2.2), names: ["WELL REGULATED"] },
+    { stat: "killsEagle", label: "EAGLE KILLS", tiers: ladder(15, 1, 2.2), names: ["AIR SUPERIORITY"] },
+    { stat: "killsMeteor", label: "METEOR ASSISTS", tiers: ladder(10, 1, 2.5), names: ["ACT OF GOD (WITNESSED)"] },
+    { stat: "turkeys", label: "TURKEYS HIT", tiers: ladder(15, 1, 2.1), names: ["FOWL PLAY", "THANKSGIVING CAME EARLY"] },
+    { stat: "dist", label: "METERS DRIVEN", tiers: ladder(20, 1000, 1.9), names: ["ROAD TRIP", "OUT-OF-STATE PLATES"] },
+    { stat: "drift", label: "SECONDS SIDEWAYS", tiers: ladder(15, 5, 1.9), names: ["KINDA SIDEWAYS", "PROFESSIONALLY SIDEWAYS"] },
+    { stat: "time", label: "SECONDS SURVIVED", tiers: ladder(18, 60, 1.8), names: ["A WHOLE MINUTE"] },
+    { stat: "fpEarned", label: "LIFETIME FREEDOM", tiers: ladder(20, 100, 1.95), names: ["FIRST PAYCHECK", "GAINFULLY EMPLOYED"] },
+    { stat: "slams", label: "WALL SLAMS", tiers: ladder(15, 1, 2.1), names: ["THE WALL SAYS HI", "STRUCTURAL DISAGREEMENT"] },
+    { stat: "scrapes", label: "WALL SCRAPES", tiers: ladder(15, 1, 2.2), names: ["JUST A SCRATCH", "CUSTOM PINSTRIPING"] },
+    { stat: "maxRound", label: "BEST ROUND", tiers: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 25, 30], names: ["SOPHOMORE LAP", "HAT TRICK"] },
+    { stat: "purchases", label: "UPGRADES BOUGHT", tiers: ladder(18, 1, 1.8), names: ["RETAIL THERAPY"] },
+    { stat: "roundsTotal", label: "TOTAL ROUNDS", tiers: ladder(18, 1, 2), names: ["ODOMETER STARTED"] },
+    { stat: "usedQ", label: "ROCKETS FIRED", tiers: ladder(14, 1, 2.3), names: ["FIREWORK ENJOYER"] },
+    { stat: "usedW", label: "TRIGGER TIME", tiers: ladder(14, 1, 2.3), names: ["WARNING SHOTS (NONE)"] },
+    { stat: "usedE", label: "MINES DROPPED", tiers: ladder(14, 1, 2.3), names: ["DON'T TREAD ON ME"] },
+    { stat: "usedR", label: "EAGLES SUMMONED", tiers: ladder(14, 1, 2.3), names: ["SCREE"] },
+    { stat: "usedT", label: "NITRO ABUSE", tiers: ladder(14, 1, 2.3), names: ["CORN POWERED"] },
+  ];
+  const ONE_OFFS = [
+    { id: "x-allkarts", name: "THE WHOLE DAMN GARAGE", desc: "Own every kart", fp: 500, test: (m) => m.karts.length >= KARTS.length },
+    { id: "x-twokarts", name: "TWO CAR HOUSEHOLD", desc: "Own two karts", fp: 150, test: (m) => m.karts.length >= 2 },
+    { id: "x-threekarts", name: "COLLECTION GROWING", desc: "Own three karts", fp: 300, test: (m) => m.karts.length >= 3 },
+    { id: "x-maxone", name: "PERFECTIONIST", desc: "Max out any upgrade", fp: 300, test: (m) => UPGRADES.some((u) => levelOf(m, u.id) >= u.max) },
+    { id: "x-maxall", name: "AMERICAN COMPLETIONIST", desc: "Max out every upgrade", fp: 5000, test: (m) => UPGRADES.every((u) => levelOf(m, u.id) >= u.max) },
+    { id: "x-allweapons", name: "FULLY OPERATIONAL", desc: "Unlock all five abilities", fp: 400, test: (m) => ["wrocket", "wgun", "wmine", "weagle", "wturbo"].every((w) => levelOf(m, w) >= 1) },
+    { id: "x-1776", name: "SPIRIT OF '76", desc: "1,776 traffic removed", fp: 1776, test: (m) => statOf(m, "kills") >= 1776 },
+    { id: "x-nice", name: "NICE.", desc: "69 deaths", fp: 69, test: (m) => statOf(m, "deaths") >= 69 },
+    { id: "x-marathon", name: "MARATHON MAN", desc: "Drive 42,195 meters", fp: 421, test: (m) => statOf(m, "dist") >= 42195 },
+    { id: "x-millionm", name: "MILLION METER CLUB", desc: "Drive 1,000,000 meters", fp: 1000, test: (m) => statOf(m, "dist") >= 1e6 },
+    { id: "x-speedrun", name: "SPEEDRUN TO VALHALLA", desc: "Die within 15 seconds", fp: 150, test: (m) => statOf(m, "fastestDeath") > 0 && statOf(m, "fastestDeath") <= 15 },
+    { id: "x-fivemin", name: "FIVE WHOLE MINUTES", desc: "Survive a 5 minute run", fp: 200, test: (m) => statOf(m, "longestRun") >= 300 },
+    { id: "x-hour", name: "AN HOUR OF NASCAR", desc: "1 hour total track time", fp: 360, test: (m) => statOf(m, "time") >= 3600 },
+    { id: "x-tenhours", name: "TEN HOURS. SEEK HELP.", desc: "10 hours total track time", fp: 1000, test: (m) => statOf(m, "time") >= 36000 },
+    { id: "x-fullday", name: "A FULL DAY AT THE TRACK", desc: "24 hours total track time", fp: 5000, test: (m) => statOf(m, "time") >= 86400 },
+    { id: "x-round13", name: "TRISKAIDEKAPHOBIA CURED", desc: "Reach round 13", fp: 130, test: (m) => statOf(m, "maxRound") >= 13 },
+    { id: "x-round20", name: "ROUND 20. HOW.", desc: "Reach round 20", fp: 2000, test: (m) => statOf(m, "maxRound") >= 20 },
+    { id: "x-round25", name: "BEYOND THE CHECKERED VEIL", desc: "Reach round 25", fp: 2500, test: (m) => statOf(m, "maxRound") >= 25 },
+    { id: "x-turkey50", name: "THANKSGIVING SUPPLIER", desc: "Hit 50 turkeys", fp: 250, test: (m) => statOf(m, "turkeys") >= 50 },
+    { id: "x-turkey500", name: "TURKEY BARON", desc: "Hit 500 turkeys", fp: 1000, test: (m) => statOf(m, "turkeys") >= 500 },
+    { id: "x-hoard", name: "FREEDOM HOARDER", desc: "Hold 5,000 FP at once", fp: 500, test: (m) => m.fp >= 5000 },
+    { id: "x-reserve", name: "THE FEDERAL RESERVE", desc: "Earn 1,000,000 lifetime FP", fp: 10000, test: (m) => statOf(m, "fpEarned") >= 1e6 },
+    { id: "x-groundhog", name: "GROUNDHOG LAP", desc: "Die in round 1, ten times", fp: 100, test: (m) => statOf(m, "r1Deaths") >= 10 },
+    { id: "x-packfood", name: "PACK ANIMAL", desc: "Die to THE PACK 25 times", fp: 250, test: (m) => statOf(m, "death_pack") >= 25 },
+    { id: "x-wallfan", name: "WALL PERSONALITY", desc: "Die to the wall 25 times", fp: 250, test: (m) => statOf(m, "death_wall") >= 25 },
+    { id: "x-trafficstat", name: "STATISTICALLY PROBABLE", desc: "Die to traffic 25 times", fp: 250, test: (m) => statOf(m, "death_traffic") >= 25 },
+    { id: "x-cosmic", name: "COSMICALLY UNLUCKY", desc: "Die to a meteor 5 times", fp: 300, test: (m) => statOf(m, "death_meteor") >= 5 },
+    { id: "x-gobbled", name: "DEATH BY TURKEY", desc: "A turkey lands the killing blow", fp: 500, test: (m) => statOf(m, "death_turkey") >= 1 },
+    { id: "x-driftking", name: "TEN MINUTES SIDEWAYS", desc: "600 seconds of lifetime drift", fp: 600, test: (m) => statOf(m, "drift") >= 600 },
+    { id: "x-wallname", name: "THE WALL KNOWS YOUR NAME", desc: "1,000 wall slams", fp: 1000, test: (m) => statOf(m, "slams") >= 1000 },
+    { id: "x-consumer", name: "CONSUMER OF THE YEAR", desc: "100 upgrades purchased", fp: 750, test: (m) => statOf(m, "purchases") >= 100 },
+    { id: "x-silence", name: "SILENCE, CHIPTUNE", desc: "Mute the masterpiece", fp: 50, test: (m) => m.muted === true },
+  ];
+  const ACHIEVEMENTS = (() => {
+    const all = [];
+    for (const fam of FAMILIES) {
+      const fpBase = fam.fpBase || 20;
+      fam.tiers.forEach((t, i) => {
+        const name = fam.names[i] || `${ESCAL[Math.min(Math.max(i - fam.names.length, 0), ESCAL.length - 1)]} ${fam.label} ${ROMAN[Math.min(i, 19)]}`;
+        all.push({ id: `${fam.stat}-${i}`, name, desc: `${fam.label}: reach ${t.toLocaleString("en-US")}`, fp: Math.round(fpBase * Math.pow(1.5, Math.min(i, 12))), test: (m) => statOf(m, fam.stat) >= t });
+      });
+    }
+    all.push(...ONE_OFFS);
+    return all;
+  })();
+  function checkAchievements(m) {
+    if (!m.ach) m.ach = {};
+    const out = [];
+    for (const a of ACHIEVEMENTS) {
+      if (m.ach[a.id] || !a.test(m)) continue;
+      m.ach[a.id] = true;
+      m.fp += a.fp;
+      out.push(a);
+    }
+    return out;
   }
 
   return {
     TUNING, TRACK, KARTS, UPGRADES, CONDITIONS, WEAPON_KEYS, worldOf, packSpeed,
     makeMeta, serializeMeta, parseMeta, costOf, levelOf, buy, buyKart, derived, fpForRun, autoSpend,
     makeRun, step, BOTS, makeBotMem, botInput, simulateRun, roundName, trafficQuota, wrapDelta, mulberry32,
+    summarize, absorbRun, ACHIEVEMENTS, checkAchievements, statOf,
   };
 })();
 if (typeof window !== "undefined") { window.SimCore = SimCore; }
@@ -866,6 +1055,7 @@ const AudioSys = (() => {
     cd: () => blip(494, 0, 0.16, "square", 0.18),
     death: () => { boom(0.6, 0.8); setTimeout(() => startSong("death"), 700); },
     meteor: () => boom(0.4, 0.4),
+    turkey: () => { blip(620, 380, 0.12, "square", 0.2); setTimeout(() => blip(540, 320, 0.1, "square", 0.18), 110); },
   };
   return { ensure, startSong, stopSong, sfx, engineUpdate, engineOn, skidLevel, applyMute, get ctx() { return ctx; } };
 })();
@@ -1116,6 +1306,23 @@ const rainPts = (() => {
   const m = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xaaccff, size: 0.35, transparent: true, opacity: 0.7 }));
   m.visible = false; scene.add(m); return m;
 })();
+const turkeyPool = [];
+for (let i = 0; i < 6; i++) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 8), new THREE.MeshLambertMaterial({ color: 0x5a3d22 }));
+  body.position.y = 0.55; body.scale.set(1, 0.9, 1.2); g.add(body);
+  const headT = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), new THREE.MeshLambertMaterial({ color: 0x8a8f98 }));
+  headT.position.set(0, 1.05, -0.45); g.add(headT);
+  const wattle = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 5), new THREE.MeshLambertMaterial({ color: 0xd62828 }));
+  wattle.position.set(0, 0.92, -0.52); g.add(wattle);
+  const tail = new THREE.Mesh(new THREE.CircleGeometry(0.55, 7, 0, Math.PI), new THREE.MeshLambertMaterial({ color: 0x7a4a24, side: THREE.DoubleSide }));
+  tail.position.set(0, 0.85, 0.5); g.add(tail);
+  const leg1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.06), new THREE.MeshLambertMaterial({ color: 0xffb020 }));
+  leg1.position.set(-0.15, 0.25, 0); g.add(leg1);
+  const leg2 = leg1.clone(); leg2.position.x = 0.15; g.add(leg2);
+  g.userData = { leg1, leg2 };
+  g.visible = false; scene.add(g); turkeyPool.push(g);
+}
 const oilMeshes = [];
 for (let i = 0; i < 10; i++) {
   const m = new THREE.Mesh(new THREE.CircleGeometry(3, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x10131c, transparent: true, opacity: 0.85 }));
@@ -1123,7 +1330,7 @@ for (let i = 0; i < 10; i++) {
 }
 
 // ============ GAME SHELL ============
-const SCREEN = { TITLE: 0, KART: 1, GARAGE: 2, COUNT: 3, RACE: 4, DEAD: 5, PAUSE: 6 };
+const SCREEN = { TITLE: 0, KART: 1, GARAGE: 2, COUNT: 3, RACE: 4, DEAD: 5, PAUSE: 6, ACH: 7 };
 let screen = SCREEN.TITLE;
 let run = null, botMem = null, attract = true, attractMem = Sim.makeBotMem();
 let countT = 0, shake = 0, camPos = new THREE.Vector3(0, 8, 20), camLook = new THREE.Vector3();
@@ -1141,7 +1348,8 @@ function gameInput() {
     q: !!keys["q"], w: !!keys["w"], e: !!keys["e"], r: !!keys["r"], t: !!keys["t"],
   };
 }
-function show(id) { for (const s of ["title", "kartSel", "garage", "death", "pause"]) $(s).classList.toggle("hidden", s !== id); if (!id) for (const s of ["title", "kartSel", "garage", "death", "pause"]) $(s).classList.add("hidden"); }
+const SCREEN_IDS = ["title", "kartSel", "garage", "death", "pause", "achievements"];
+function show(id) { for (const s of SCREEN_IDS) $(s).classList.toggle("hidden", s !== id); }
 function setScreen(next) {
   screen = next;
   $("hud").classList.toggle("hidden", !(next === SCREEN.RACE || next === SCREEN.COUNT || next === SCREEN.PAUSE));
@@ -1152,10 +1360,13 @@ function setScreen(next) {
   if (next === SCREEN.RACE) { show(null); }
   if (next === SCREEN.DEAD) { show("death"); }
   if (next === SCREEN.PAUSE) { show("pause"); }
+  if (next === SCREEN.ACH) { show("achievements"); renderAch(); }
 }
 function startAttract() { run = Sim.makeRun(Sim.makeMeta(), (Math.random() * 1e6) | 0); attractMem = Sim.makeBotMem(); }
+let packWarned = false;
 function startRun() {
   attract = false;
+  packWarned = false;
   run = Sim.makeRun(meta, (Math.random() * 1e9) | 0);
   botMem = null;
   buildAbilityBar();
@@ -1207,6 +1418,11 @@ const CD_MAX = { q: 6, w: 2.5, e: 12, r: 22, t: 11 };
 let hudT = 0;
 function updateHUD(dt) {
   hudT -= dt; if (hudT > 0 || !run) return; hudT = 0.08;
+  if (!packWarned && run.fx.packGap < 130 && screen === SCREEN.RACE) {
+    packWarned = true;
+    banner("⚠ THE PACK — STAY FAST OR DIE ⚠");
+    AudioSys.sfx.round();
+  }
   $("roundN").textContent = run.round;
   $("fpRun").textContent = Sim.fpForRun({ dist: run.dist, rounds: run.round, kills: run.kills, driftT: run.driftT }, meta);
   const mph = Math.round(Math.abs(run.v) * 2.4);
@@ -1231,7 +1447,7 @@ function updateHUD(dt) {
 }
 // menus
 function refreshTitle() {
-  $("titleStats").textContent = `BEST ROUND ${meta.bestRound} · ${meta.deaths} GLORIOUS DEATHS · 🦅 ${meta.fp} FP BANKED`;
+  $("titleStats").textContent = `BEST ROUND ${meta.bestRound} · ${meta.deaths} GLORIOUS DEATHS · 🦅 ${meta.fp} FP · 🏆 ${Object.keys(meta.ach).length}/${Sim.ACHIEVEMENTS.length}`;
   $("mute").textContent = meta.muted ? "🔇 muted (M)" : "🔊 sound on (M)";
 }
 function renderKarts() {
@@ -1246,8 +1462,10 @@ function renderKarts() {
     div.innerHTML = `${owned ? "" : `<span class="price">🦅 ${k.cost}</span>`}<h3>${k.name}</h3><div class="flav">${k.flavor}</div>${bars}`;
     div.onclick = () => {
       if (owned) { meta.kart = k.id; AudioSys.sfx.click(); }
-      else if (Sim.buyKart(meta, k.id)) { AudioSys.sfx.buy(); popup(`UNLOCKED ${k.name}!`); }
-      else AudioSys.sfx.deny();
+      else if (Sim.buyKart(meta, k.id)) {
+        AudioSys.sfx.buy(); popup(`UNLOCKED ${k.name}!`);
+        for (const a of Sim.checkAchievements(meta).slice(0, 3)) popup(`🏆 ${a.name} +${a.fp}`);
+      } else AudioSys.sfx.deny();
       save(); renderKarts();
     };
     row.appendChild(div);
@@ -1266,27 +1484,34 @@ function renderGarage() {
     div.innerHTML = `<h4>${u.icon} ${u.name}${lvl > 0 ? " LV" + lvl : ""}</h4><div class="eff">${u.eff}</div><div class="pips">${pips}</div><div class="flav">${u.flavor}</div>
       <button class="buy" ${maxed || meta.fp < cost ? "disabled" : ""}>${maxed ? "MAXED 🦅" : `BUY · 🦅 ${cost}`}</button>`;
     div.querySelector(".buy").onclick = () => {
-      if (Sim.buy(meta, u.id)) { AudioSys.sfx.buy(); save(); renderGarage(); }
-      else AudioSys.sfx.deny();
+      if (Sim.buy(meta, u.id)) {
+        AudioSys.sfx.buy();
+        for (const a of Sim.checkAchievements(meta).slice(0, 3)) popup(`🏆 ${a.name} +${a.fp}`);
+        save(); renderGarage();
+      } else AudioSys.sfx.deny();
     };
     grid.appendChild(div);
   }
 }
 function showDeath() {
-  const stats = { dist: run.dist, rounds: run.round, kills: run.kills, driftT: run.driftT };
-  const earned = Sim.fpForRun(stats, meta);
-  meta.fp += earned;
-  meta.deaths++;
-  meta.bestRound = Math.max(meta.bestRound, run.round);
+  const sum = Sim.summarize(run, meta);
+  Sim.absorbRun(meta, sum);
+  const unlocked = Sim.checkAchievements(meta);
   save();
-  const causes = { pack: "THE PACK", wall: "THE WALL", traffic: "CIVILIAN TRAFFIC", meteor: "A ROGUE METEOR" };
+  const causes = { pack: "THE PACK", wall: "THE WALL", traffic: "CIVILIAN TRAFFIC", meteor: "A ROGUE METEOR", turkey: "A TURKEY. A LITERAL TURKEY." };
   $("wreckedBy").textContent = "WRECKED BY: " + (causes[run.cause] || "AMERICA");
   setScreen(SCREEN.DEAD);
   AudioSys.engineOn(false);
   AudioSys.sfx.death();
   const t = $("tally");
-  const rows = [["ROUNDS SURVIVED", run.round], ["DISTANCE", Math.round(run.dist) + "m"], ["KILLS", run.kills], ["DRIFT TIME", run.driftT.toFixed(1) + "s"]];
+  const rows = [["ROUNDS SURVIVED", sum.rounds], ["DISTANCE", sum.dist + "m"], ["KILLS", sum.kills], ["TURKEYS", sum.turkeys], ["DRIFT TIME", sum.driftT.toFixed(1) + "s"]];
   t.innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><span>${b}</span></div>`).join("") + `<div class="total"><span>FREEDOM POINTS</span><span id="tallyFp">0</span></div>`;
+  const achFp = unlocked.reduce((a, b) => a + b.fp, 0);
+  const shown = unlocked.slice(0, 6).map((a) => `<div>🏆 ${a.name} <b>+${a.fp}</b></div>`).join("");
+  const more = unlocked.length > 6 ? `<div>…and ${unlocked.length - 6} more trophies (+${unlocked.slice(6).reduce((a, b) => a + b.fp, 0)})</div>` : "";
+  $("deathAch").innerHTML = unlocked.length ? shown + more : "";
+  if (unlocked.length) AudioSys.sfx.buy();
+  const earned = sum.fp + achFp;
   const el = () => document.getElementById("tallyFp");
   const t0 = performance.now();
   const tick = (now) => {
@@ -1297,11 +1522,22 @@ function showDeath() {
   };
   requestAnimationFrame(tick);
 }
+function renderAch() {
+  const got = Object.keys(meta.ach).length;
+  $("achCount").textContent = `${got} / ${Sim.ACHIEVEMENTS.length} UNLOCKED`;
+  $("achGrid").innerHTML = Sim.ACHIEVEMENTS.map((a) => {
+    const own = !!meta.ach[a.id];
+    return `<div class="up${own ? "" : " lockedach"}"><h4>${own ? "🏆" : "🔒"} ${a.name}</h4><div class="eff">${a.desc}</div><div class="flav">+${a.fp} FP</div></div>`;
+  }).join("");
+}
 function onKey(k) {
   if (k === "m") { meta.muted = !meta.muted; save(); AudioSys.applyMute(); refreshTitle(); return; }
   if (!AudioSys.ensure()) {} // first gesture unlocks audio
   if (screen === SCREEN.TITLE) {
     if (k === "enter") { AudioSys.sfx.click(); setScreen(SCREEN.KART); }
+    if (k === "a") { AudioSys.sfx.click(); setScreen(SCREEN.ACH); }
+  } else if (screen === SCREEN.ACH) {
+    if (k === "escape") setScreen(SCREEN.TITLE);
   } else if (screen === SCREEN.KART) {
     if (k === "enter") { AudioSys.sfx.click(); startRun(); }
     if (k === "escape") setScreen(SCREEN.TITLE);
@@ -1320,6 +1556,8 @@ function onKey(k) {
 }
 $("bGarage").onclick = () => { AudioSys.ensure(); setScreen(SCREEN.GARAGE); };
 $("bKart").onclick = () => { AudioSys.ensure(); setScreen(SCREEN.KART); };
+$("bAch").onclick = () => { AudioSys.ensure(); setScreen(SCREEN.ACH); };
+$("bBack3").onclick = () => setScreen(SCREEN.TITLE);
 $("bRace1").onclick = () => { AudioSys.ensure(); startRun(); };
 $("bBack1").onclick = () => setScreen(SCREEN.TITLE);
 $("bRace2").onclick = () => { AudioSys.ensure(); startRun(); };
@@ -1356,6 +1594,16 @@ function handleEvents(events) {
     else if (ev.type === "meteorWarn") {}
     else if (ev.type === "meteorHit") { const p = Sim.worldOf(ev.s, ev.d); puff(p.x, 1, p.z, 0xff6428, 30, 24, 1, 2, 11); AudioSys.sfx.meteor(); shake = Math.min(1.4, shake + 0.4); }
     else if (ev.type === "overheat") AudioSys.sfx.cd();
+    else if (ev.type === "turkey") {
+      AudioSys.sfx.turkey();
+      if (ev.eaten) popup("EAGLE ATE A TURKEY");
+      else {
+        popup("FOWL PLAY 🦃");
+        shake = Math.min(1, shake + 0.25);
+        const p = Sim.worldOf(ev.s, ev.d);
+        puff(p.x, 1, p.z, 0xffffff, 18, 12, 1, 0.9, 6);
+      }
+    }
     else if (ev.type === "death") { shake = 1.6; puff(w0.x, 1.5, w0.z, 0xff5028, 40, 26, 1.4, 2.2, 10); setTimeout(showDeath, 900); }
   }
 }
@@ -1374,7 +1622,7 @@ function syncScene(dt) {
   playerMesh.rotation.z = -run.latV * 0.02 - (run.rel * 0.15);
   for (const wme of playerMesh.userData.wheels) wme.rotation.x += run.v * dt * 2.2;
   playerMesh.visible = true;
-  headlight.intensity = run.round >= 5 ? 3.2 : 0;
+  headlight.intensity = run.round >= 4 ? 3.2 : 0;
   // skid + sparks
   if (run.fx.slip > 1 && Math.abs(run.v) > 10) {
     const w0 = Sim.worldOf(run.s, run.d);
@@ -1452,6 +1700,20 @@ function syncScene(dt) {
       if (Math.random() < 0.4) puff(eagle.position.x, eagle.position.y, eagle.position.z, 0xffffff, 1, 4, 0.6, 0.6, 2);
     }
   }
+  // turkeys
+  for (let i = 0; i < turkeyPool.length; i++) {
+    const g = turkeyPool[i];
+    if (run.turkeys && i < run.turkeys.length) {
+      const tk = run.turkeys[i];
+      const w0 = Sim.worldOf(tk.s, tk.d);
+      g.visible = true;
+      const strut = performance.now() / 55 + i * 2;
+      g.position.set(w0.x, Math.abs(Math.sin(strut)) * 0.08, w0.z);
+      g.rotation.set(0, Math.atan2(-w0.tx, -w0.tz) + tk.dir * Math.PI / 2, 0);
+      g.userData.leg1.rotation.x = Math.sin(strut) * 0.6;
+      g.userData.leg2.rotation.x = -Math.sin(strut) * 0.6;
+    } else g.visible = false;
+  }
   // oils
   for (let i = 0; i < oilMeshes.length; i++) {
     const m = oilMeshes[i];
@@ -1462,8 +1724,8 @@ function syncScene(dt) {
     } else m.visible = false;
   }
   // weather / palette
-  const isNight = run.round >= 5 && run.round < 7;
-  const isRain = run.round >= 7;
+  const isNight = run.round >= 4 && run.round < 5;
+  const isRain = run.round >= 5;
   const pal = isRain ? PAL.rain : isNight ? PAL.night : PAL.day;
   scene.background.lerp(new THREE.Color(pal.sky), 0.04);
   scene.fog.color.lerp(new THREE.Color(pal.fog), 0.04);

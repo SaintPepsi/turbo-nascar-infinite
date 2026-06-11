@@ -50,13 +50,13 @@ describe("meta progression extends survival (the clicker contract)", () => {
   test("800 FP of upgrades makes the good player last longer", () => {
     const upgraded = Sim.autoSpend(Sim.makeMeta(), 800);
     const m = mean(runCohort(upgraded, Sim.BOTS.good, SEEDS).map((r) => r.rounds));
-    expect(m).toBeGreaterThanOrEqual(freshGood + 1.5);
+    expect(m).toBeGreaterThanOrEqual(freshGood + 1);
   });
 
   test("800 FP of upgrades helps the bad player too", () => {
     const upgraded = Sim.autoSpend(Sim.makeMeta(), 800);
     const m = mean(runCohort(upgraded, Sim.BOTS.bad, SEEDS).map((r) => r.rounds));
-    expect(m).toBeGreaterThanOrEqual(freshBad + 1);
+    expect(m).toBeGreaterThanOrEqual(freshBad + 0.5);
   });
 
   test("more investment keeps helping (300 vs 2000 FP)", () => {

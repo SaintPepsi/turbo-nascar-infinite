@@ -56,6 +56,14 @@ The entire simulation lives in a pure `<script id="sim-core">` block (no DOM, no
 
 Spec said "good player survives 10 rounds, bad player 2" — that's the contract the suite enforces.
 
+## Credits
+
+- **Rohan** — AI Trailblazer
+- **Luke** — AI Sherrif
+- **Nick** — AI Connosouir (first playtester; the turkeys were his idea)
+- **Ian** — gave the orders
+- **Claude (Fable 5)** — everything else
+
 ## Docs
 
 Design rationale: `docs/plans/2026-06-11-turbo-nascar-infinite-design.md`.
