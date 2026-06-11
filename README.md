@@ -1,5 +1,7 @@
 # 🦅 TURBO NASCAR INFINITE
 
+**▶ PLAY IT: https://saintpepsi.github.io/turbo-nascar-infinite/**
+
 Single-file Three.js NASCAR roguelite. Outrun THE PACK behind you without overcooking the corners
 ahead of you. Die. Bank Freedom Points. Buy absurd upgrades. Go again, longer.
 
