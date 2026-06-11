@@ -1373,7 +1373,7 @@ function syncScene(dt) {
   placeKart(playerMesh, run.s, run.d, run.rel);
   playerMesh.rotation.z = -run.latV * 0.02 - (run.rel * 0.15);
   for (const wme of playerMesh.userData.wheels) wme.rotation.x += run.v * dt * 2.2;
-  playerMesh.visible = !attract || true;
+  playerMesh.visible = true;
   headlight.intensity = run.round >= 5 ? 3.2 : 0;
   // skid + sparks
   if (run.fx.slip > 1 && Math.abs(run.v) > 10) {

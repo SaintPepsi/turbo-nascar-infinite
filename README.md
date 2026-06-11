@@ -9,7 +9,9 @@ ahead of you. Die. Bank Freedom Points. Buy absurd upgrades. Go again, longer.
 bun run serve   # → http://localhost:8923
 ```
 
-(Or open `index.html` directly — Three.js loads from the jsDelivr CDN, the only external fetch.)
+(Or open `index.html` directly — Three.js loads from the jsDelivr CDN, the only external fetch.
+For a fully **offline** single file, `bun build-dist.ts` writes `dist/index.html` with Three.js
+bundled in — that's what the share zip contains, alongside the player-facing `README.txt`.)
 
 ## Controls
 

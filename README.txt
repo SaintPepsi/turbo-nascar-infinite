@@ -1,4 +1,5 @@
 🦅 TURBO NASCAR INFINITE 🦅
+(this file ships inside the share zip, next to a self-contained index.html)
 
 HOW TO PLAY
   1. Double-click index.html (opens in your browser — no internet needed)
