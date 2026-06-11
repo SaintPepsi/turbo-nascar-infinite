@@ -1,7 +1,7 @@
 🦅 TURBO NASCAR INFINITE 🦅
 
 HOW TO PLAY
-  1. Double-click index.html (opens in your browser — no internet needed)
+  1. Double-click index.html (opens in your browser — needs internet)
   2. Press ENTER
 
 DRIVE

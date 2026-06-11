@@ -911,7 +911,6 @@ function ribbon(dInner, dOuter, y, mat, stepLen) {
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setIndex(idx); g.computeVertexNormals();
-  mat.side = THREE.DoubleSide;
   return new THREE.Mesh(g, mat);
 }
 function wallRibbon(dSide, h, mat) {
@@ -1346,13 +1345,13 @@ function handleEvents(events) {
 function placeKart(mesh, s, d, rel, vy) {
   const w0 = Sim.worldOf(s, d);
   mesh.position.set(w0.x, vy || 0, w0.z);
-  const yaw = Math.atan2(-w0.tx, -w0.tz) + (rel || 0);
+  const yaw = Math.atan2(-w0.tz, w0.tx) + Math.PI / 2 + (rel || 0);
   mesh.rotation.set(0, yaw, 0);
 }
 function syncScene(dt) {
   if (!run) return;
   // player
-  placeKart(playerMesh, run.s, run.d, run.rel);
+  placeKart(playerMesh, run.s, run.d, -run.rel);
   playerMesh.rotation.z = -run.latV * 0.02 - (run.rel * 0.15);
   for (const wme of playerMesh.userData.wheels) wme.rotation.x += run.v * dt * 2.2;
   playerMesh.visible = !attract || true;
@@ -1427,7 +1426,7 @@ function syncScene(dt) {
       const s = run.s + 8 + et * 30;
       const w0 = Sim.worldOf(s, Math.sin(et * 4) * 3);
       eagle.position.set(w0.x, 5 - Math.sin(Math.min(Math.PI, et * 2.2)) * 3.4, w0.z);
-      const yaw = Math.atan2(-w0.tx, -w0.tz);
+      const yaw = Math.atan2(-w0.tz, w0.tx) + Math.PI / 2;
       eagle.rotation.set(0, yaw, 0);
       eagle.userData.wl.rotation.z = Math.sin(et * 18) * 0.7;
       eagle.userData.wr.rotation.z = -Math.sin(et * 18) * 0.7;
