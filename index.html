@@ -872,7 +872,25 @@ const AudioSys = (() => {
 
 // ============ RENDERER ============
 const W = () => window.innerWidth, H = () => window.innerHeight;
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+function makeRenderer() {
+  try {
+    return new THREE.WebGLRenderer({ antialias: true });
+  } catch (err) {
+    const div = document.createElement("div");
+    div.className = "screen";
+    div.style.zIndex = "99";
+    div.innerHTML = `<div class="logo"><div class="l2">PIT STOP</div></div>
+      <p style="max-width:540px;font-size:15px;line-height:1.6;font-weight:400;font-family:Georgia,serif">
+      Your browser couldn't start WebGL, so the track can't render.<br>
+      This usually means graphics acceleration is switched off, or the browser's GPU process crashed.<br><br>
+      <b>Fix:</b> fully quit and reopen your browser, then open this file again.<br>
+      Still broken in Chrome? Settings → System → turn ON
+      "Use graphics acceleration when available" → Relaunch.</p>`;
+    document.body.appendChild(div);
+    throw err;
+  }
+}
+const renderer = makeRenderer();
 renderer.setPixelRatio(Math.min(1.6, window.devicePixelRatio));
 renderer.setSize(W(), H());
 $("scene").appendChild(renderer.domElement);
