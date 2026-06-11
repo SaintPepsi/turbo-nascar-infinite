@@ -1,6 +1,13 @@
 # 🦅 TURBO NASCAR INFINITE
 
+![100% AI generated](https://img.shields.io/badge/100%25-AI_GENERATED-d62828?labelColor=0b1c4d)
+![model](https://img.shields.io/badge/Claude-Fable_5-ffd24a?labelColor=0b1c4d)
+
 **▶ PLAY IT: https://saintpepsi.github.io/turbo-nascar-infinite/**
+
+Every line here — the game, the physics, the balance bots, the chiptune transcriptions, this
+README — was written by Claude (Fable 5) running in Claude Code. Human input: the two-paragraph
+spec, a 9-minute deadline, and bug reports from playtesting.
 
 Single-file Three.js NASCAR roguelite. Outrun THE PACK behind you without overcooking the corners
 ahead of you. Die. Bank Freedom Points. Buy absurd upgrades. Go again, longer.
