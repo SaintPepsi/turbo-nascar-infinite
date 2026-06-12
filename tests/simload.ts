@@ -54,8 +54,11 @@ export interface RunState {
   time: number;
   dist: number;
   kills: number;
+  killFp: number;
   dead: boolean;
   cause: string;
+  track: TrackApi;
+  traffic: Array<{ s: number; d: number; v: number; hp?: number }>;
   turkeys: Array<{ s: number; d: number }>;
   [k: string]: unknown;
 }
@@ -80,13 +83,29 @@ export interface SimEvent {
   [k: string]: unknown;
 }
 
+export interface TrackApi {
+  length: number;
+  width: number;
+  at(s: number): { x: number; z: number; tx: number; tz: number; curv: number };
+}
+
+export interface WeaponSpec {
+  rockets: number;
+  targets: number;
+  charges: number;
+  eagles: number;
+  boost: number;
+  grip: boolean;
+  invuln: boolean;
+  killer: boolean;
+  stall: number;
+  dmg: number;
+  [k: string]: unknown;
+}
+
 export interface SimCoreApi {
   TUNING: Record<string, number>;
-  TRACK: {
-    length: number;
-    width: number;
-    at(s: number): { x: number; z: number; tx: number; tz: number; curv: number };
-  };
+  TRACK: TrackApi;
   KARTS: Array<{
     id: string;
     name: string;
@@ -122,7 +141,11 @@ export interface SimCoreApi {
     startRound: number;
     tiers: Record<string, number>;
   };
-  fpForRun(stats: { dist: number; rounds: number; kills: number; driftT: number }, m: Meta): number;
+  fpForRun(stats: { dist: number; rounds: number; kills: number; driftT: number; killFp?: number }, m: Meta): number;
+  weaponSpec(key: string, lvl: number): WeaponSpec;
+  nextMilestone(id: string, lvl: number): { lvl: number; text: string } | null;
+  makeTrack(mul: number): TrackApi;
+  worldOfT(track: TrackApi, s: number, d: number): { x: number; z: number; tx: number; tz: number };
   makeRun(m: Meta, seed: number): RunState;
   step(st: RunState, input: SimInput, dt: number): SimEvent[];
   BOTS: { good: BotProfile; bad: BotProfile };

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TURBO NASCAR INFINITE</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🦅</text></svg>">
 <style>
 :root{--navy:#0b1c4d;--navy2:#060f2e;--red:#d62828;--gold:#ffd24a;--white:#f6f7fb;--green:#3ddc68}
 *{margin:0;padding:0;box-sizing:border-box;user-select:none}
@@ -48,6 +49,10 @@ kbd{background:#fff;color:#111;border-radius:5px;padding:1px 7px;font-family:inh
 .pips{display:flex;gap:3px;margin:5px 0}
 .pips s{width:11px;height:11px;border-radius:3px;background:#0a102b;border:1px solid #31407f;text-decoration:none}
 .pips s.on{background:var(--green);border-color:#9fffc1}
+.lvchip{display:inline-block;background:#0a102b;border:1px solid var(--gold);color:var(--gold);border-radius:4px;padding:1px 6px;font-size:11px;font-style:normal;margin-left:4px}
+.mile{font-size:10.5px;color:var(--gold);margin:5px 0;letter-spacing:0.4px}
+.mile.done{color:var(--green)}
+.mile.inf{color:#8fa3e8}
 .buy{width:100%;font:inherit;font-size:13px;background:#1c8a3c;color:#fff;border:2px solid #9fffc1;border-radius:8px;padding:5px;cursor:pointer;font-style:italic}
 .buy:disabled{background:#333c5c;border-color:#556;color:#8b96bd;cursor:default}
 .up.maxed .buy{background:#7a5f00;border-color:var(--gold);color:var(--gold)}
@@ -189,9 +194,10 @@ const SimCore = (() => {
   }
   const clamp = (x, lo, hi) => (x < lo ? lo : x > hi ? hi : x);
 
-  // --- TRACK: rounded-rect oval via lookup table (straight 220, radius 80) ---
-  const TRACK = (() => {
-    const ST = 220, R = 80, HALF = ST / 2;
+  // --- TRACK: rounded-rect oval via lookup table (base: straight 220, radius 80) ---
+  // mul scales the geometry (EMINENT DOMAIN); a lap still pays out every TUNING.roundDist.
+  function makeTrack(mul) {
+    const ST = 220 * mul, R = 80 * mul, HALF = ST / 2;
     const segLen = [ST, Math.PI * R, ST, Math.PI * R];
     const length = segLen.reduce((a, b) => a + b, 0);
     const width = 16;
@@ -210,13 +216,16 @@ const SimCore = (() => {
       const p = raw(s);
       return { x: p.x, z: p.z, tx: Math.cos(p.ang), tz: Math.sin(p.ang), curv: p.curv };
     }
-    return { length, width, at };
-  })();
+    return { length, width, at, mul };
+  }
+  const TRACK = makeTrack(1);
+  TUNING.roundDist = TRACK.length;
   // NOTE on frame: tangent (tx,tz); left-normal = (tz, -tx) in XZ with y-up.
-  function worldOf(s, d) {
-    const t = TRACK.at(s);
+  function worldOfT(track, s, d) {
+    const t = track.at(s);
     return { x: t.x + t.tz * d, z: t.z - t.tx * d, tx: t.tx, tz: t.tz, curv: t.curv };
   }
+  function worldOf(s, d) { return worldOfT(TRACK, s, d); }
 
   // --- CONTENT TABLES ---
   const KARTS = [
@@ -227,20 +236,73 @@ const SimCore = (() => {
     { id: "eagleone", name: "BALD EAGLE ONE", cost: 5000, spd: 1.15, acc: 1.15, grp: 1.1, arm: 1.1, color: "#e8e8ec", num: "★", flavor: "The final bird." },
   ];
   const UPGRADES = [
-    { id: "engine", name: "BIGGER ENGINE", icon: "🐎", base: 25, growth: 1.55, max: 20, eff: "+4% top speed", flavor: "More horses. American horses." },
-    { id: "tires", name: "FREEDOM TIRES", icon: "🛞", base: 25, growth: 1.55, max: 20, eff: "+8% grip", flavor: "They grip the land of the free." },
-    { id: "armor", name: "STEEL PLATING", icon: "🛡️", base: 30, growth: 1.55, max: 20, eff: "+15 armor", flavor: "Genuine Detroit steel." },
-    { id: "accel", name: "TURBOCHARGER", icon: "🌪️", base: 40, growth: 1.55, max: 15, eff: "+6% acceleration", flavor: "Eagle-fed induction." },
-    { id: "pit", name: "PIT CREW", icon: "🔧", base: 90, growth: 1.6, max: 10, eff: "+2 armor each lap", flavor: "The boys are QUICK." },
-    { id: "luck", name: "LUCKY FLAG", icon: "🇺🇸", base: 100, growth: 1.7, max: 10, eff: "+15% Freedom Points", flavor: "Stars AND stripes." },
-    { id: "qual", name: "QUALIFYING", icon: "⏱️", base: 400, growth: 3, max: 5, eff: "start +1 round later", flavor: "Skip the warm-up lap, hotshot." },
-    { id: "wrocket", name: "ROCKETS [Q]", icon: "🚀", base: 60, growth: 1.7, max: 5, eff: "fire freedom forward", flavor: "The red glare kind." },
-    { id: "wturbo", name: "NITRO USA [T]", icon: "⚡", base: 120, growth: 1.6, max: 5, eff: "temporary illegal speed", flavor: "Corn-based. Probably." },
-    { id: "wgun", name: "FREEDOM GUNS [W]", icon: "🔫", base: 150, growth: 1.7, max: 5, eff: "constitutional dakka", flavor: "Well regulated. Fully automatic." },
-    { id: "wmine", name: "LIBERTY MINES [E]", icon: "💣", base: 220, growth: 1.7, max: 5, eff: "stalls THE PACK behind you", flavor: "Don't tread on these." },
-    { id: "weagle", name: "EAGLE STRIKE [R]", icon: "🦅", base: 500, growth: 1.8, max: 5, eff: "air support, majestic", flavor: "SCREEEEEEE." },
+    { id: "engine", name: "BIGGER ENGINE", icon: "🐎", base: 25, growth: 1.35, max: Infinity, eff: "+4% top speed", flavor: "More horses. American horses." },
+    { id: "tires", name: "FREEDOM TIRES", icon: "🛞", base: 25, growth: 1.35, max: Infinity, eff: "+8% grip", flavor: "They grip the land of the free." },
+    { id: "armor", name: "STEEL PLATING", icon: "🛡️", base: 30, growth: 1.35, max: Infinity, eff: "+15 armor", flavor: "Genuine Detroit steel." },
+    { id: "accel", name: "TURBOCHARGER", icon: "🌪️", base: 40, growth: 1.35, max: Infinity, eff: "+6% acceleration", flavor: "Eagle-fed induction." },
+    { id: "pit", name: "PIT CREW", icon: "🔧", base: 90, growth: 1.42, max: Infinity, eff: "+2 armor each lap", flavor: "The boys are QUICK." },
+    { id: "luck", name: "LUCKY FLAG", icon: "🇺🇸", base: 100, growth: 1.5, max: Infinity, eff: "+15% Freedom Points", flavor: "Stars AND stripes." },
+    { id: "qual", name: "QUALIFYING", icon: "⏱️", base: 400, growth: 3, max: Infinity, eff: "start +1 round later", flavor: "Skip the warm-up lap, hotshot." },
+    { id: "bigtrack", name: "EMINENT DOMAIN", icon: "🏟️", base: 300, growth: 1.6, max: Infinity, eff: "+8% track size, same lap", flavor: "We bought the neighbors out." },
+    { id: "wrocket", name: "ROCKETS [Q]", icon: "🚀", base: 60, growth: 1.32, max: Infinity, eff: "fire freedom forward", flavor: "The red glare kind." },
+    { id: "wturbo", name: "NITRO USA [T]", icon: "⚡", base: 120, growth: 1.32, max: Infinity, eff: "temporary illegal speed", flavor: "Corn-based. Probably." },
+    { id: "wgun", name: "FREEDOM GUNS [W]", icon: "🔫", base: 150, growth: 1.34, max: Infinity, eff: "constitutional dakka", flavor: "Well regulated. Fully automatic." },
+    { id: "wmine", name: "LIBERTY MINES [E]", icon: "💣", base: 220, growth: 1.34, max: Infinity, eff: "stalls THE PACK behind you", flavor: "Don't tread on these." },
+    { id: "weagle", name: "EAGLE STRIKE [R]", icon: "🦅", base: 500, growth: 1.36, max: Infinity, eff: "air support, majestic", flavor: "SCREEEEEEE." },
   ];
   const WEAPON_KEYS = { wrocket: "q", wgun: "w", wmine: "e", weagle: "r", wturbo: "t" };
+  // Milestone breakpoints: the "just one more restart" carrots. Text shows in the garage.
+  const WEAPON_MILESTONES = {
+    q: [
+      { lvl: 3, text: "TWIN ROCKETS" }, { lvl: 5, text: "TRIPLE ROCKETS" }, { lvl: 8, text: "QUAD ROCKETS" },
+      { lvl: 12, text: "FULL SALVO ×5" }, { lvl: 20, text: "AIRSPACE VIOLATION ×7" },
+    ],
+    w: [
+      { lvl: 5, text: "+50% DAKKA" }, { lvl: 10, text: "TWIN-LINKED — 2 TARGETS" }, { lvl: 15, text: "FULL BROADSIDE — 3 TARGETS" },
+    ],
+    e: [
+      { lvl: 4, text: "TWIN CHARGE" }, { lvl: 8, text: "TRIPLE CHARGE" }, { lvl: 12, text: "QUAD CHARGE" },
+    ],
+    r: [
+      { lvl: 5, text: "TWIN EAGLES — WIDER SWEEP" }, { lvl: 10, text: "EAGLES SCARE THE PACK" },
+    ],
+    t: [
+      { lvl: 5, text: "ON RAILS — FULL GRIP BOOST" }, { lvl: 10, text: "STAR SPANGLED — INVULNERABLE" }, { lvl: 15, text: "FREEDOM TRAIN — RAM KILLS" },
+    ],
+  };
+  function weaponSpec(key, lvl) {
+    switch (key) {
+      case "q": return {
+        rockets: lvl >= 20 ? 7 : lvl >= 12 ? 5 : lvl >= 8 ? 4 : lvl >= 5 ? 3 : lvl >= 3 ? 2 : 1,
+        blast: 3.5 + 1.1 * Math.min(lvl, 10) + 0.25 * Math.max(0, lvl - 10),
+        dmg: 40 + 16 * lvl,
+      };
+      case "w": return {
+        targets: lvl >= 15 ? 3 : lvl >= 10 ? 2 : 1,
+        dmg: (55 + 25 * lvl) * (lvl >= 5 ? 1.5 : 1),
+      };
+      case "e": return { charges: 1 + Math.floor(lvl / 4), stall: 1.2 + 0.5 * lvl };
+      case "r": return {
+        eagles: lvl >= 5 ? 2 : 1,
+        reach: (40 + 8 * lvl) * (lvl >= 5 ? 1.6 : 1),
+        scare: lvl >= 10,
+      };
+      case "t": return {
+        boost: Math.min(9, 3 + 0.45 * lvl),
+        power: 1.32 + 0.025 * lvl,
+        grip: lvl >= 5,
+        invuln: lvl >= 10,
+        killer: lvl >= 15,
+      };
+      default: return {};
+    }
+  }
+  function nextMilestone(id, lvl) {
+    const key = WEAPON_KEYS[id];
+    if (!key) return null;
+    const m = WEAPON_MILESTONES[key].find((x) => x.lvl > lvl);
+    return m ? { lvl: m.lvl, text: m.text } : null;
+  }
   const CONDITIONS = [
     { round: 2, id: "turkey", name: "TURKEY CROSSING" },
     { round: 3, id: "traffic2", name: "MORE CARS, MORE PROBLEMS" },
@@ -259,7 +321,10 @@ const SimCore = (() => {
   ];
 
   function packSpeed(round) {
-    return TUNING.packBase * Math.pow(TUNING.packGrowth, Math.max(0, round - 1));
+    // Second gear past round 12: the idle-game wall. Upgrades are geometric-cost,
+    // the wall is exponential — every build dies, richer builds just die later.
+    return TUNING.packBase * Math.pow(TUNING.packGrowth, Math.max(0, round - 1)) *
+      Math.pow(1.05, Math.max(0, round - 12));
   }
 
   // --- META / ECONOMY ---
@@ -274,12 +339,13 @@ const SimCore = (() => {
       if (!m || typeof m.fp !== "number" || !m.upgrades || !Array.isArray(m.karts)) return makeMeta();
       if (m.v === 1) {
         const up = { ...makeMeta(), fp: m.fp, upgrades: m.upgrades, karts: m.karts, kart: m.kart, bestRound: m.bestRound || 0, deaths: m.deaths || 0, muted: !!m.muted };
-        up.stats = { deaths: m.deaths || 0, maxRound: m.bestRound || 0, kartsOwned: m.karts.length };
+        up.stats = { deaths: m.deaths || 0, maxRound: m.bestRound || 0, kartsOwned: m.karts.length, maxLevel: Object.values(m.upgrades).reduce((a, b) => Math.max(a, b), 0) };
         return up;
       }
       if (m.v !== SAVE_V) return makeMeta();
       if (!m.stats) m.stats = {};
       if (!m.ach) m.ach = {};
+      if (!m.stats.maxLevel) m.stats.maxLevel = Object.values(m.upgrades).reduce((a, b) => Math.max(a, b), 0);
       return m;
     } catch (_) { return makeMeta(); }
   }
@@ -300,7 +366,10 @@ const SimCore = (() => {
     if (m.fp < cost) return false;
     m.fp -= cost;
     m.upgrades[id] = lvl + 1;
-    if (m.stats) bump(m, "purchases", 1);
+    if (m.stats) {
+      bump(m, "purchases", 1);
+      if (lvl + 1 > statOf(m, "maxLevel")) m.stats.maxLevel = lvl + 1;
+    }
     return true;
   }
   function buyKart(m, id) {
@@ -323,19 +392,21 @@ const SimCore = (() => {
       regen: 2 * L("pit"),
       fpMul: 1 + 0.15 * L("luck"),
       startRound: 1 + L("qual"),
+      trackMul: 1 + 0.08 * L("bigtrack"),
       tiers: { q: L("wrocket"), w: L("wgun"), e: L("wmine"), r: L("weagle"), t: L("wturbo") },
     };
   }
   function fpForRun(stats, m) {
     const d = derived(m);
+    const killPart = stats.killFp !== undefined ? stats.killFp : stats.kills * TUNING.fpKill;
     const raw = TUNING.fpPity + stats.dist * TUNING.fpDist +
       TUNING.fpRound * Math.pow(Math.max(0, stats.rounds - 1), TUNING.fpRoundExp) +
-      stats.kills * TUNING.fpKill + stats.driftT * TUNING.fpDrift;
+      killPart + stats.driftT * TUNING.fpDrift;
     return Math.floor(raw * d.fpMul);
   }
   function autoSpend(m, grant) {
     m.fp += grant;
-    for (let guard = 0; guard < 400; guard++) {
+    for (let guard = 0; guard < 2000; guard++) {
       let best = null;
       for (const u of UPGRADES) {
         const lvl = levelOf(m, u.id);
@@ -353,12 +424,13 @@ const SimCore = (() => {
   function makeRun(m, seed) {
     const dv = derived(m);
     const st = {
-      rng: mulberry32(seed), seed,
+      rng: mulberry32(seed), seed, track: makeTrack(dv.trackMul),
       s: 0, d: 0, sTotal: 0, rel: 0, latV: 0, v: 0,
       hp: dv.maxHp, maxHp: dv.maxHp, round: dv.startRound, startRound: dv.startRound,
       packTotal: -(TUNING.packGap0 + 110 * (dv.startRound - 1)), packStall: 0,
-      time: 0, dist: 0, kills: 0, driftT: 0, dead: false, cause: "",
+      time: 0, dist: 0, kills: 0, killFp: 0, driftT: 0, dead: false, cause: "",
       stat: dv, tiers: dv.tiers,
+      spec: { q: weaponSpec("q", dv.tiers.q), w: weaponSpec("w", dv.tiers.w), e: weaponSpec("e", dv.tiers.e), r: weaponSpec("r", dv.tiers.r), t: weaponSpec("t", dv.tiers.t) },
       cd: { q: 0, w: 0, e: 0, r: 0, t: 0 }, heat: 0, turboT: 0, eagleT: 0,
       traffic: [], shots: [], mines: [], oils: [], meteors: [], meteorT: 0,
       turkeys: [], turkeyT: 4, windT: 0, fx: { slip: 0, scrape: 0, packGap: 999, boost: 0 },
@@ -371,13 +443,13 @@ const SimCore = (() => {
   function trafficQuota(round) {
     return Math.min(TUNING.trafCap, Math.floor(TUNING.trafBase + TUNING.trafPerRound * (round - 1)));
   }
-  function intensity(round) { return round >= 10 ? 1 + 0.06 * (round - 10) : 1; }
+  function intensity(round) { return Math.pow(1.08, Math.max(0, round - 10)); }
   function seedRoundContent(st) {
     const r = st.round;
     if (r >= 2) {
       const n = Math.min(10, (r >= 9 ? 4 : 2) + Math.floor((r - 2) / 2));
       st.oils = [];
-      for (let i = 0; i < n; i++) st.oils.push({ s: st.rng() * TRACK.length, d: (st.rng() * 2 - 1) * 5.5, r: 3 });
+      for (let i = 0; i < n; i++) st.oils.push({ s: st.rng() * st.track.length, d: (st.rng() * 2 - 1) * 5.5, r: 3 });
     }
     st.condNames = CONDITIONS.filter((c) => c.round <= r).map((c) => c.id);
   }
@@ -390,24 +462,26 @@ const SimCore = (() => {
   function spawnTraffic(st) {
     const quota = trafficQuota(st.round);
     for (let guard = 0; guard < 40 && st.traffic.length < quota; guard++) {
-      const gap = 120 + st.rng() * (TRACK.length - 280);
+      const gap = 120 + st.rng() * (st.track.length - 280);
       st.traffic.push({
-        s: (st.s + gap) % TRACK.length,
+        s: (st.s + gap) % st.track.length,
         d: (st.rng() * 2 - 1) * 5.2,
-        v: (TUNING.trafVMin + st.rng() * (TUNING.trafVMax - TUNING.trafVMin)) * (1 + 0.012 * (st.round - 1)) * intensity(st.round),
+        v: (TUNING.trafVMin + st.rng() * (TUNING.trafVMax - TUNING.trafVMin)) * (1 + 0.02 * (st.round - 1)) * intensity(st.round),
+        hp: 24 + 9 * (st.round - 1),
         wob: st.rng() * 6.28, hue: st.rng(),
       });
     }
   }
-  function wrapDelta(a, b) {
+  function wrapDelta(a, b, L) {
     let d = a - b;
-    const L = TRACK.length;
+    L = L || TRACK.length;
     d = ((d % L) + L) % L;
     if (d > L / 2) d -= L;
     return d;
   }
   function hurt(st, dmg, cause, events, type) {
     if (st.dead) return;
+    if (st.fx.invuln) return;
     st.hp -= dmg;
     if (type) events.push({ type, dmg });
     if (st.hp <= 0) {
@@ -419,7 +493,9 @@ const SimCore = (() => {
     st.traffic.splice(i, 1);
     st.kills++;
     if (st.killsBy[via] !== undefined) st.killsBy[via]++;
-    events.push({ type: "kill", via, fp: TUNING.fpKill });
+    const fp = TUNING.fpKill * (1 + 0.12 * (st.round - 1));
+    st.killFp += fp;
+    events.push({ type: "kill", via, fp: Math.round(fp) });
   }
 
   function step(st, input, dt) {
@@ -427,15 +503,18 @@ const SimCore = (() => {
     if (st.dead) return events;
     st.time += dt;
     const T = TUNING;
+    const TRK = st.track, L = TRK.length;
+    const wd = (a, b) => wrapDelta(a, b, L);
     const turbo = st.turboT > 0;
+    st.fx.invuln = turbo && st.spec.t.invuln;
     const gripRain = st.round >= 5 ? 0.85 : 1;
-    let grip = st.stat.grip * gripRain * (turbo && st.tiers.t >= 3 ? 1.25 : 1);
-    const top = st.stat.topSpeed * (turbo ? 1.32 : 1);
+    let grip = st.stat.grip * gripRain * (turbo ? (st.spec.t.grip ? 2.4 : 1 + 0.08 * st.tiers.t) : 1);
+    const top = st.stat.topSpeed * (turbo ? st.spec.t.power : 1);
     const accel = st.stat.accel * (turbo ? 1.5 : 1);
 
     // oil zones
     for (const o of st.oils) {
-      if (Math.abs(wrapDelta(o.s, st.s)) < o.r && Math.abs(o.d - st.d) < o.r) {
+      if (Math.abs(wd(o.s, st.s)) < o.r && Math.abs(o.d - st.d) < o.r) {
         grip *= 0.5;
         st.rel += (st.rng() - 0.5) * 1.2 * dt;
       }
@@ -450,7 +529,7 @@ const SimCore = (() => {
     if (st.v > top) st.v = Math.max(top, st.v - 14 * dt);
 
     // steering & lateral
-    const here = TRACK.at(st.s);
+    const here = TRK.at(st.s);
     const auth = 1 / (1 + Math.max(0, st.v) / 70);
     st.rel += input.steer * T.steerRate * auth * dt;
     st.rel -= st.rel * T.align * dt;
@@ -490,10 +569,10 @@ const SimCore = (() => {
     const ds = (st.v * Math.cos(st.rel)) / Math.max(0.6, 1 - here.curv * st.d) * dt;
     st.sTotal += ds;
     if (ds > 0) st.dist += ds;
-    st.s = ((st.sTotal % TRACK.length) + TRACK.length) % TRACK.length;
+    st.s = ((st.sTotal % L) + L) % L;
 
-    // round crossing
-    const newRound = st.startRound + Math.max(0, Math.floor(st.sTotal / TRACK.length));
+    // round crossing (fixed distance — EMINENT DOMAIN grows the track, not the lap)
+    const newRound = st.startRound + Math.max(0, Math.floor(st.sTotal / T.roundDist));
     if (newRound > st.round) {
       st.round = newRound;
       st.hp = Math.min(st.maxHp, st.hp + st.stat.regen);
@@ -510,7 +589,7 @@ const SimCore = (() => {
     st.fx.packGap = gap;
     if (gap < T.packContact) {
       st.packTotal = st.sTotal - T.packContact;
-      hurt(st, T.packDps * dt, "pack", events, null);
+      hurt(st, T.packDps * intensity(st.round) * dt, "pack", events, null);
       st.fx.packHit = true;
     } else st.fx.packHit = false;
 
@@ -520,14 +599,14 @@ const SimCore = (() => {
       if (st.turkeyT <= 0) {
         st.turkeyT = (5 + st.rng() * 4) / intensity(st.round);
         const dir = st.rng() < 0.5 ? 1 : -1;
-        st.turkeys.push({ s: (st.s + 70 + st.rng() * 90) % TRACK.length, d: -8.4 * dir, dir, v: 3.5 + st.rng() * 3 });
+        st.turkeys.push({ s: (st.s + 70 + st.rng() * 90) % L, d: -8.4 * dir, dir, v: 3.5 + st.rng() * 3 });
       }
     }
     for (let i = st.turkeys.length - 1; i >= 0; i--) {
       const tk = st.turkeys[i];
       tk.d += tk.dir * tk.v * dt;
       if (Math.abs(tk.d) > 8.6 && Math.sign(tk.d) === tk.dir) { st.turkeys.splice(i, 1); continue; }
-      if (Math.abs(wrapDelta(tk.s, st.s)) < 2.6 && Math.abs(tk.d - st.d) < 1.6 && Math.abs(st.v) > 4) {
+      if (Math.abs(wd(tk.s, st.s)) < 2.6 && Math.abs(tk.d - st.d) < 1.6 && Math.abs(st.v) > 4) {
         st.turkeys.splice(i, 1);
         st.turkeyHits++;
         hurt(st, 6, "turkey", events, null);
@@ -541,11 +620,16 @@ const SimCore = (() => {
     const wander = st.round >= 6;
     for (let i = st.traffic.length - 1; i >= 0; i--) {
       const c = st.traffic[i];
-      c.s = ((c.s + c.v * dt) % TRACK.length + TRACK.length) % TRACK.length;
+      c.s = ((c.s + c.v * dt) % L + L) % L;
       if (wander) { c.wob += dt; c.d += Math.sin(c.wob * 1.7) * 1.5 * dt; c.d = clamp(c.d, -5.6, 5.6); }
-      const delta = wrapDelta(c.s, st.s);
+      const delta = wd(c.s, st.s);
       if (delta < -70) { st.traffic.splice(i, 1); continue; }
       if (Math.abs(delta) < 3.2 && Math.abs(c.d - st.d) < 2.1) {
+        if (st.fx.invuln && st.spec.t.killer) {
+          killTraffic(st, i, events, "ram");
+          events.push({ type: "freedomTrain", s: c.s, d: c.d });
+          continue;
+        }
         const relV = Math.abs(st.v - c.v);
         hurt(st, 8 + relV * 0.5, "traffic", events, "hit");
         st.v *= T.trafHitSlow;
@@ -560,24 +644,27 @@ const SimCore = (() => {
     if (input.q && st.tiers.q > 0 && st.cd.q <= 0) {
       st.cd.q = 6;
       st.used.q++;
-      const n = st.tiers.q >= 3 ? 3 : 1;
-      for (let j = 0; j < n; j++) st.shots.push({ s: st.s + 5, d: st.d + (j - (n - 1) / 2) * 2.4, v: Math.max(st.v, 20) + 42, life: 2.2 });
-      events.push({ type: "rocket" });
+      const n = st.spec.q.rockets;
+      for (let j = 0; j < n; j++) st.shots.push({ s: st.s + 5, d: st.d + (j - (n - 1) / 2) * 1.9, v: Math.max(st.v, 20) + 42 + j * 3, life: 2.2 });
+      events.push({ type: "rocket", n });
     }
     for (let i = st.shots.length - 1; i >= 0; i--) {
       const sh = st.shots[i];
       sh.life -= dt;
-      sh.s = ((sh.s + sh.v * dt) % TRACK.length + TRACK.length) % TRACK.length;
+      sh.s = ((sh.s + sh.v * dt) % L + L) % L;
       let nearest = null, nd = 60;
-      for (const c of st.traffic) { const dd = wrapDelta(c.s, sh.s); if (dd > 0 && dd < nd) { nd = dd; nearest = c; } }
+      for (const c of st.traffic) { const dd = wd(c.s, sh.s); if (dd > 0 && dd < nd) { nd = dd; nearest = c; } }
       if (nearest) sh.d += clamp(nearest.d - sh.d, -1, 1) * 8 * dt;
       let boom = sh.life <= 0;
-      if (nearest && Math.abs(wrapDelta(nearest.s, sh.s)) < 4 && Math.abs(nearest.d - sh.d) < 2.6) boom = true;
+      if (nearest && Math.abs(wd(nearest.s, sh.s)) < 4 && Math.abs(nearest.d - sh.d) < 2.6) boom = true;
       if (boom) {
-        const blast = 3.5 + st.tiers.q * 1.2;
+        const blast = st.spec.q.blast;
         for (let k2 = st.traffic.length - 1; k2 >= 0; k2--) {
           const c = st.traffic[k2];
-          if (Math.abs(wrapDelta(c.s, sh.s)) < blast && Math.abs(c.d - sh.d) < 3.5) killTraffic(st, k2, events, "rocket");
+          if (Math.abs(wd(c.s, sh.s)) < blast && Math.abs(c.d - sh.d) < 3.5) {
+            c.hp = (c.hp || 24) - st.spec.q.dmg;
+            if (c.hp <= 0) killTraffic(st, k2, events, "rocket");
+          }
         }
         events.push({ type: "boom", s: sh.s, d: sh.d });
         st.shots.splice(i, 1);
@@ -588,54 +675,58 @@ const SimCore = (() => {
       if (!st.fx.firing) st.used.w++;
       st.heat += dt / 3;
       if (st.heat >= 1) { st.cd.w = 2.5; st.heat = 0; events.push({ type: "overheat" }); }
-      let tgt = -1, best = 38;
+      const picks = [];
       for (let i = 0; i < st.traffic.length; i++) {
-        const c = st.traffic[i], dd = wrapDelta(c.s, st.s);
-        if (dd > 1 && dd < best && Math.abs(c.d - st.d) < 2.4) { best = dd; tgt = i; }
+        const c = st.traffic[i], dd = wd(c.s, st.s);
+        if (dd > 1 && dd < 38 && Math.abs(c.d - st.d) < 2.4) picks.push({ i, dd });
       }
+      picks.sort((a, b) => a.dd - b.dd);
       st.fx.firing = true;
-      if (tgt >= 0) {
-        st.traffic[tgt].hp = (st.traffic[tgt].hp || 24) - (55 + 25 * st.tiers.w) * dt;
-        if (st.traffic[tgt].hp <= 0) killTraffic(st, tgt, events, "gun");
+      const hits = picks.slice(0, st.spec.w.targets).sort((a, b) => b.i - a.i);
+      for (const h of hits) {
+        const c = st.traffic[h.i];
+        c.hp = (c.hp || 24) - st.spec.w.dmg * dt;
+        if (c.hp <= 0) killTraffic(st, h.i, events, "gun");
       }
     } else { st.heat = Math.max(0, st.heat - dt / 2); st.fx.firing = false; }
     // E mine
     if (input.e && st.tiers.e > 0 && st.cd.e <= 0) {
       st.cd.e = 12;
       st.used.e++;
-      st.mines.push({ sTotal: st.sTotal - 4, arm: 0.5 });
-      events.push({ type: "mine" });
+      for (let j = 0; j < st.spec.e.charges; j++) st.mines.push({ sTotal: st.sTotal - 4 - j * 9, arm: 0.5 });
+      events.push({ type: "mine", n: st.spec.e.charges });
     }
     for (let i = st.mines.length - 1; i >= 0; i--) {
       const mn = st.mines[i];
       mn.arm -= dt;
       if (mn.arm <= 0 && st.packTotal >= mn.sTotal) {
-        st.packStall = 1.2 + 0.5 * st.tiers.e;
+        st.packStall = st.spec.e.stall;
         st.mines.splice(i, 1);
         events.push({ type: "mineBoom" });
-      } else if (st.sTotal - mn.sTotal > TRACK.length) st.mines.splice(i, 1);
+      } else if (st.sTotal - mn.sTotal > L) st.mines.splice(i, 1);
     }
     // R eagle
     if (input.r && st.tiers.r > 0 && st.cd.r <= 0) {
       st.cd.r = 22;
       st.used.r++;
-      const reach = 40 + 8 * st.tiers.r;
+      const reach = st.spec.r.reach;
       for (let i = st.traffic.length - 1; i >= 0; i--) {
-        const dd = wrapDelta(st.traffic[i].s, st.s);
+        const dd = wd(st.traffic[i].s, st.s);
         if (dd > 4 && dd < reach) killTraffic(st, i, events, "eagle");
       }
       for (let i = st.turkeys.length - 1; i >= 0; i--) {
-        const dd = wrapDelta(st.turkeys[i].s, st.s);
+        const dd = wd(st.turkeys[i].s, st.s);
         if (dd > 4 && dd < reach) { st.turkeys.splice(i, 1); st.turkeyHits++; events.push({ type: "turkey", eaten: true }); }
       }
-      events.push({ type: "eagle", reach });
+      if (st.spec.r.scare) st.packStall = Math.max(st.packStall, 2.4);
+      events.push({ type: "eagle", reach, eagles: st.spec.r.eagles });
     }
     // T turbo
     if (input.t && st.tiers.t > 0 && st.cd.t <= 0) {
       st.cd.t = 11;
       st.used.t++;
-      st.turboT = 3 + 0.5 * st.tiers.t;
-      events.push({ type: "turbo" });
+      st.turboT = st.spec.t.boost;
+      events.push({ type: "turbo", spangled: st.spec.t.invuln });
     }
     st.fx.boost = st.turboT > 0 ? 1 : 0;
 
@@ -644,17 +735,17 @@ const SimCore = (() => {
       st.meteorT -= dt;
       if (st.meteorT <= 0) {
         st.meteorT = Math.max(1.6, 5 - 0.25 * (st.round - 8)) / intensity(st.round);
-        st.meteors.push({ s: (st.s + 60 + st.rng() * 140) % TRACK.length, d: (st.rng() * 2 - 1) * 6, t: 1.2 });
+        st.meteors.push({ s: (st.s + 60 + st.rng() * 140) % L, d: (st.rng() * 2 - 1) * 6, t: 1.2 });
         events.push({ type: "meteorWarn" });
       }
       for (let i = st.meteors.length - 1; i >= 0; i--) {
         const mt = st.meteors[i];
         mt.t -= dt;
         if (mt.t <= 0) {
-          if (Math.abs(wrapDelta(mt.s, st.s)) < 4.5 && Math.abs(mt.d - st.d) < 3) { hurt(st, 30, "meteor", events, "hit"); st.v *= 0.6; }
+          if (Math.abs(wd(mt.s, st.s)) < 4.5 && Math.abs(mt.d - st.d) < 3) { hurt(st, 30, "meteor", events, "hit"); st.v *= 0.6; }
           for (let k3 = st.traffic.length - 1; k3 >= 0; k3--) {
             const c = st.traffic[k3];
-            if (Math.abs(wrapDelta(c.s, mt.s)) < 4.5 && Math.abs(c.d - mt.d) < 3) killTraffic(st, k3, events, "meteor");
+            if (Math.abs(wd(c.s, mt.s)) < 4.5 && Math.abs(c.d - mt.d) < 3) killTraffic(st, k3, events, "meteor");
           }
           events.push({ type: "meteorHit", s: mt.s, d: mt.d });
           st.meteors.splice(i, 1);
@@ -675,7 +766,7 @@ const SimCore = (() => {
     const top = st.stat.topSpeed;
     let worst = 0;
     for (const off of [0, 18, 36]) {
-      const c = Math.abs(TRACK.at(st.s + Math.max(10, st.v * p.lookahead) + off).curv);
+      const c = Math.abs(st.track.at(st.s + Math.max(10, st.v * p.lookahead) + off).curv);
       worst = Math.max(worst, c);
     }
     const vLimit = worst > 1e-4 ? Math.sqrt(st.stat.grip / (worst * TUNING.bankF)) : Infinity;
@@ -689,7 +780,7 @@ const SimCore = (() => {
         for (const lane of [-5, -2.5, 0, 2.5, 5]) {
           let cost = Math.abs(lane) * 0.12 + Math.abs(lane - st.d) * 0.05;
           for (const c of st.traffic) {
-            const dd = wrapDelta(c.s, st.s);
+            const dd = wrapDelta(c.s, st.s, st.track.length);
             if (dd > 0 && dd < p.dodgeRange && Math.abs(c.d - lane) < 2.7) cost += (p.dodgeRange - dd) * 0.2;
           }
           if (cost < bestCost) { bestCost = cost; bestLane = lane; }
@@ -704,7 +795,7 @@ const SimCore = (() => {
     if (p.useAbilities) {
       let aheadNear = 0, ahead70 = 0;
       for (const c of st.traffic) {
-        const dd = wrapDelta(c.s, st.s);
+        const dd = wrapDelta(c.s, st.s, st.track.length);
         if (dd > 0 && Math.abs(c.d - st.d) < 2.6 && dd < 45) aheadNear++;
         if (dd > 0 && dd < 70) ahead70++;
       }
@@ -719,7 +810,7 @@ const SimCore = (() => {
   function summarize(st, m) {
     return {
       rounds: st.round, time: Math.round(st.time * 10) / 10, dist: Math.round(st.dist),
-      kills: st.kills, fp: fpForRun({ dist: st.dist, rounds: st.round, kills: st.kills, driftT: st.driftT }, m),
+      kills: st.kills, fp: fpForRun({ dist: st.dist, rounds: st.round, kills: st.kills, driftT: st.driftT, killFp: st.killFp }, m),
       cause: st.cause || "pack", driftT: Math.round(st.driftT * 10) / 10, turkeys: st.turkeyHits,
       slams: st.slamCount, scrapes: st.scrapeCount, killsBy: { ...st.killsBy }, used: { ...st.used },
     };
@@ -800,6 +891,7 @@ const SimCore = (() => {
     { stat: "scrapes", label: "WALL SCRAPES", tiers: ladder(15, 1, 2.2), names: ["JUST A SCRATCH", "CUSTOM PINSTRIPING"] },
     { stat: "maxRound", label: "BEST ROUND", tiers: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 25, 30], names: ["SOPHOMORE LAP", "HAT TRICK"] },
     { stat: "purchases", label: "UPGRADES BOUGHT", tiers: ladder(18, 1, 1.8), names: ["RETAIL THERAPY"] },
+    { stat: "maxLevel", label: "DEEPEST UPGRADE", fpBase: 30, tiers: [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 23, 26, 30, 35, 40], names: ["FIRST TASTE", "UPGRADE CURIOUS", "UPGRADE ADDICTION"] },
     { stat: "roundsTotal", label: "TOTAL ROUNDS", tiers: ladder(18, 1, 2), names: ["ODOMETER STARTED"] },
     { stat: "usedQ", label: "ROCKETS FIRED", tiers: ladder(14, 1, 2.3), names: ["FIREWORK ENJOYER"] },
     { stat: "usedW", label: "TRIGGER TIME", tiers: ladder(14, 1, 2.3), names: ["WARNING SHOTS (NONE)"] },
@@ -811,8 +903,11 @@ const SimCore = (() => {
     { id: "x-allkarts", name: "THE WHOLE DAMN GARAGE", desc: "Own every kart", fp: 500, test: (m) => m.karts.length >= KARTS.length },
     { id: "x-twokarts", name: "TWO CAR HOUSEHOLD", desc: "Own two karts", fp: 150, test: (m) => m.karts.length >= 2 },
     { id: "x-threekarts", name: "COLLECTION GROWING", desc: "Own three karts", fp: 300, test: (m) => m.karts.length >= 3 },
-    { id: "x-maxone", name: "PERFECTIONIST", desc: "Max out any upgrade", fp: 300, test: (m) => UPGRADES.some((u) => levelOf(m, u.id) >= u.max) },
-    { id: "x-maxall", name: "AMERICAN COMPLETIONIST", desc: "Max out every upgrade", fp: 5000, test: (m) => UPGRADES.every((u) => levelOf(m, u.id) >= u.max) },
+    { id: "x-maxone", name: "PERFECTIONIST", desc: "Get any upgrade to level 20", fp: 1000, test: (m) => statOf(m, "maxLevel") >= 20 },
+    { id: "x-maxall", name: "AMERICAN COMPLETIONIST", desc: "Every upgrade at level 10+", fp: 5000, test: (m) => UPGRADES.every((u) => levelOf(m, u.id) >= 10) },
+    { id: "x-rocket20", name: "AIRSPACE VIOLATION CITATION", desc: "Rockets at level 20 — seven at once", fp: 2000, test: (m) => levelOf(m, "wrocket") >= 20 },
+    { id: "x-freedomtrain", name: "FREEDOM TRAIN CONDUCTOR", desc: "Nitro at level 15 — ramming speed", fp: 1500, test: (m) => levelOf(m, "wturbo") >= 15 },
+    { id: "x-landbaron", name: "LAND BARON", desc: "EMINENT DOMAIN at level 5", fp: 400, test: (m) => levelOf(m, "bigtrack") >= 5 },
     { id: "x-allweapons", name: "FULLY OPERATIONAL", desc: "Unlock all five abilities", fp: 400, test: (m) => ["wrocket", "wgun", "wmine", "weagle", "wturbo"].every((w) => levelOf(m, w) >= 1) },
     { id: "x-1776", name: "SPIRIT OF '76", desc: "1,776 traffic removed", fp: 1776, test: (m) => statOf(m, "kills") >= 1776 },
     { id: "x-nice", name: "NICE.", desc: "69 deaths", fp: 69, test: (m) => statOf(m, "deaths") >= 69 },
@@ -866,7 +961,7 @@ const SimCore = (() => {
   }
 
   return {
-    TUNING, TRACK, KARTS, UPGRADES, CONDITIONS, WEAPON_KEYS, worldOf, packSpeed,
+    TUNING, TRACK, KARTS, UPGRADES, CONDITIONS, WEAPON_KEYS, WEAPON_MILESTONES, weaponSpec, nextMilestone, makeTrack, worldOf, worldOfT, packSpeed,
     makeMeta, serializeMeta, parseMeta, costOf, levelOf, buy, buyKart, derived, fpForRun, autoSpend,
     makeRun, step, BOTS, makeBotMem, botInput, simulateRun, roundName, trafficQuota, wrapDelta, mulberry32,
     summarize, absorbRun, ACHIEVEMENTS, checkAchievements, statOf,
@@ -878,6 +973,9 @@ if (typeof window !== "undefined") { window.SimCore = SimCore; }
 <script type="module">
 import * as THREE from "three";
 const Sim = window.SimCore;
+// Active run track (EMINENT DOMAIN can grow it); all rendering goes through these.
+let TRK = Sim.TRACK;
+const wo = (s, d) => Sim.worldOfT(TRK, s, d);
 const $ = (id) => document.getElementById(id);
 const KEY = "tni_save_v1";
 let meta = Sim.parseMeta(localStorage.getItem(KEY));
@@ -1108,11 +1206,11 @@ function canvasTex(w, h, draw) {
 // track ribbon builder
 function ribbon(dInner, dOuter, y, mat, stepLen) {
   const pts = [];
-  const n = Math.ceil(Sim.TRACK.length / (stepLen || 4));
+  const n = Math.ceil(TRK.length / (stepLen || 4));
   const pos = [], idx = [];
   for (let i = 0; i <= n; i++) {
-    const s = (i / n) * Sim.TRACK.length;
-    const a = Sim.worldOf(s, dInner), b = Sim.worldOf(s, dOuter);
+    const s = (i / n) * TRK.length;
+    const a = wo(s, dInner), b = wo(s, dOuter);
     pos.push(a.x, y, a.z, b.x, y, b.z);
     if (i < n) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
   }
@@ -1123,12 +1221,12 @@ function ribbon(dInner, dOuter, y, mat, stepLen) {
   return new THREE.Mesh(g, mat);
 }
 function wallRibbon(dSide, h, mat) {
-  const n = Math.ceil(Sim.TRACK.length / 6);
+  const n = Math.ceil(TRK.length / 6);
   const pos = [], idx = [], col = [];
   const cA = new THREE.Color(0xd62828), cB = new THREE.Color(0xffffff);
   for (let i = 0; i <= n; i++) {
-    const s = (i / n) * Sim.TRACK.length;
-    const a = Sim.worldOf(s, dSide);
+    const s = (i / n) * TRK.length;
+    const a = wo(s, dSide);
     pos.push(a.x, 0, a.z, a.x, h, a.z);
     const c = Math.floor(s / 12) % 2 === 0 ? cA : cB;
     col.push(c.r, c.g, c.b, c.r, c.g, c.b);
@@ -1140,47 +1238,62 @@ function wallRibbon(dSide, h, mat) {
   g.setIndex(idx); g.computeVertexNormals();
   return new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
 }
-const hw = Sim.TRACK.width / 2;
+const hw = TRK.width / 2;
 scene.add(new THREE.Mesh(new THREE.CircleGeometry(700, 40).rotateX(-Math.PI / 2).translate(0, -0.25, 0), new THREE.MeshLambertMaterial({ color: 0x2e7d32 })));
-scene.add(ribbon(-hw - 3, hw + 3, -0.12, new THREE.MeshLambertMaterial({ color: 0x274020 })));
-scene.add(ribbon(-hw, hw, 0, new THREE.MeshLambertMaterial({ color: 0x3c3f46 })));
-scene.add(ribbon(-hw, -hw + 0.5, 0.02, new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })));
-scene.add(ribbon(hw - 0.5, hw, 0.02, new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })));
-scene.add(ribbon(-0.25, 0.25, 0.015, new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.35 })));
-scene.add(wallRibbon(-hw - 0.4, 2.0));
-scene.add(wallRibbon(hw + 0.4, 2.0));
-// start line
-{
-  const t = canvasTex(64, 64, (g) => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = (x + y) % 2 ? "#111" : "#eee"; g.fillRect(x * 8, y * 8, 8, 8); } });
-  const w0 = Sim.worldOf(0, 0);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(3.5, Sim.TRACK.width), new THREE.MeshBasicMaterial({ map: t }));
-  m.rotateX(-Math.PI / 2).rotateZ(Math.atan2(w0.tz, w0.tx));
-  m.position.set(w0.x, 0.03, w0.z);
-  scene.add(m);
-}
-// grandstands + billboards + light towers
-const props = new THREE.Group(); scene.add(props);
-{
+// All track-shaped scenery lives in one group so EMINENT DOMAIN can rebuild it.
+let trackG = null, builtTrackLen = 0;
+function buildTrackScenery() {
+  if (trackG && Math.abs(TRK.length - builtTrackLen) < 0.5) return;
+  builtTrackLen = TRK.length;
+  if (trackG) {
+    scene.remove(trackG);
+    trackG.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    });
+  }
+  trackG = new THREE.Group();
+  const sMul = TRK.length / Sim.TRACK.length;
+  trackG.add(ribbon(-hw - 3, hw + 3, -0.12, new THREE.MeshLambertMaterial({ color: 0x274020 })));
+  trackG.add(ribbon(-hw, hw, 0, new THREE.MeshLambertMaterial({ color: 0x3c3f46 })));
+  trackG.add(ribbon(-hw, -hw + 0.5, 0.02, new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })));
+  trackG.add(ribbon(hw - 0.5, hw, 0.02, new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })));
+  trackG.add(ribbon(-0.25, 0.25, 0.015, new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.35 })));
+  trackG.add(wallRibbon(-hw - 0.4, 2.0));
+  trackG.add(wallRibbon(hw + 0.4, 2.0));
+  // start line
+  {
+    const t = canvasTex(64, 64, (g) => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = (x + y) % 2 ? "#111" : "#eee"; g.fillRect(x * 8, y * 8, 8, 8); } });
+    const w0 = wo(0, 0);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(3.5, TRK.width), new THREE.MeshBasicMaterial({ map: t }));
+    m.rotateX(-Math.PI / 2).rotateZ(Math.atan2(w0.tz, w0.tx));
+    m.position.set(w0.x, 0.03, w0.z);
+    trackG.add(m);
+  }
+  // grandstands + billboards
   const standMat = new THREE.MeshLambertMaterial({ map: canvasTex(128, 64, (g) => { g.fillStyle = "#27314f"; g.fillRect(0, 0, 128, 64); for (let i = 0; i < 380; i++) { g.fillStyle = `hsl(${Math.random() * 360},70%,${55 + Math.random() * 25}%)`; g.fillRect(Math.random() * 128, Math.random() * 64, 2.4, 2.4); } }) });
-  for (const s of [60, 110, 160, 530, 580, 630]) {
-    const w0 = Sim.worldOf(s, hw + 16);
+  for (const s0 of [60, 110, 160, 530, 580, 630]) {
+    const s = s0 * sMul;
+    const w0 = wo(s, hw + 16);
     const box = new THREE.Mesh(new THREE.BoxGeometry(40, 12, 9), standMat);
     box.position.set(w0.x, 5, w0.z);
-    box.lookAt(Sim.worldOf(s, 0).x, 5, Sim.worldOf(s, 0).z);
-    props.add(box);
+    box.lookAt(wo(s, 0).x, 5, wo(s, 0).z);
+    trackG.add(box);
   }
   const bills = ["EAGLE COLA", "FREEDOM FUEL $1.99", "MAPLE MOTORS", "BUY MORE TIRES"];
   bills.forEach((txt, i) => {
-    const s = 240 + i * 110;
-    const w0 = Sim.worldOf(s, -hw - 14);
+    const s = (240 + i * 110) * sMul;
+    const w0 = wo(s, -hw - 14);
     const m = new THREE.Mesh(new THREE.BoxGeometry(22, 6, 0.6), new THREE.MeshLambertMaterial({ map: canvasTex(256, 72, (g) => { g.fillStyle = ["#d62828", "#0b1c4d", "#b45309", "#14532d"][i]; g.fillRect(0, 0, 256, 72); g.fillStyle = "#fff"; g.font = "bold 30px Arial Black"; g.textAlign = "center"; g.fillText(txt, 128, 47, 240); }) }));
     m.position.set(w0.x, 6, w0.z);
-    m.lookAt(Sim.worldOf(s, 0).x, 6, Sim.worldOf(s, 0).z);
-    props.add(m);
+    m.lookAt(wo(s, 0).x, 6, wo(s, 0).z);
+    trackG.add(m);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 6), new THREE.MeshLambertMaterial({ color: 0x555 }));
-    pole.position.set(w0.x, 3, w0.z); props.add(pole);
+    pole.position.set(w0.x, 3, w0.z); trackG.add(pole);
   });
+  scene.add(trackG);
 }
+buildTrackScenery();
 // kart factory
 function makeKartMesh(k, scale) {
   const g = new THREE.Group();
@@ -1211,6 +1324,7 @@ const playerKart = makeKartMesh(Sim.KARTS[0]); scene.add(playerKart);
 const headlight = new THREE.SpotLight(0xfff2c5, 0, 90, 0.5, 0.5, 1);
 playerKart.add(headlight); headlight.position.set(0, 1.4, -1);
 const hlTarget = new THREE.Object3D(); playerKart.add(hlTarget); hlTarget.position.set(0, 0, -30); headlight.target = hlTarget;
+const invulnGlow = new THREE.PointLight(0xffd24a, 0, 11); invulnGlow.position.set(0, 1.6, 0); playerKart.add(invulnGlow);
 // traffic pool
 const trafficPool = [];
 for (let i = 0; i < 28; i++) {
@@ -1249,7 +1363,7 @@ for (let i = 0; i < 6; i++) {
   const r = new THREE.Mesh(new THREE.RingGeometry(2.4, 3.6, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff4040, transparent: true, opacity: 0.7 }));
   r.visible = false; scene.add(r); ringPool.push(r);
 }
-const eagle = (() => {
+function makeEagle() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.4, 6).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x4a3422 }));
   g.add(body);
@@ -1263,7 +1377,9 @@ const eagle = (() => {
   g.userData = { wl, wr, t: -1 };
   g.visible = false; g.scale.setScalar(2.2); scene.add(g);
   return g;
-})();
+}
+const eagle = makeEagle();
+const eagle2 = makeEagle();
 // particles
 const sprites = [];
 {
@@ -1362,12 +1478,19 @@ function setScreen(next) {
   if (next === SCREEN.PAUSE) { show("pause"); }
   if (next === SCREEN.ACH) { show("achievements"); renderAch(); }
 }
-function startAttract() { run = Sim.makeRun(Sim.makeMeta(), (Math.random() * 1e6) | 0); attractMem = Sim.makeBotMem(); }
+function startAttract() {
+  run = Sim.makeRun(Sim.makeMeta(), (Math.random() * 1e6) | 0);
+  attractMem = Sim.makeBotMem();
+  TRK = run.track;
+  buildTrackScenery();
+}
 let packWarned = false;
 function startRun() {
   attract = false;
   packWarned = false;
   run = Sim.makeRun(meta, (Math.random() * 1e9) | 0);
+  TRK = run.track;
+  buildTrackScenery();
   botMem = null;
   buildAbilityBar();
   rebuildPlayerKart();
@@ -1384,6 +1507,7 @@ function rebuildPlayerKart() {
   const k = Sim.KARTS.find((x) => x.id === meta.kart) || Sim.KARTS[0];
   playerMesh = makeKartMesh(k);
   playerMesh.add(headlight); playerMesh.add(hlTarget); headlight.target = hlTarget;
+  playerMesh.add(invulnGlow);
   scene.add(playerMesh);
 }
 function banner(txt) {
@@ -1427,7 +1551,7 @@ function updateHUD(dt) {
   $("fpRun").textContent = Sim.fpForRun({ dist: run.dist, rounds: run.round, kills: run.kills, driftT: run.driftT }, meta);
   const mph = Math.round(Math.abs(run.v) * 2.4);
   $("mph").textContent = mph;
-  const here = Sim.TRACK.at(run.s + run.v * 1.0);
+  const here = TRK.at(run.s + run.v * 1.0);
   const vLim = here.curv > 1e-4 ? Math.sqrt(run.stat.grip / (here.curv * Sim.TUNING.bankF)) : Infinity;
   $("mph").className = run.v > vLim ? "danger" : "";
   $("gear").textContent = `GEAR ${Math.min(5, 1 + Math.floor(Math.abs(run.v) / run.stat.topSpeed * 5))} · MPH`;
@@ -1476,13 +1600,17 @@ function renderGarage() {
   const grid = $("upGrid"); grid.innerHTML = "";
   for (const u of Sim.UPGRADES) {
     const lvl = Sim.levelOf(meta, u.id);
-    const maxed = lvl >= u.max;
-    const cost = maxed ? 0 : Sim.costOf(u.id, lvl);
+    const cost = Sim.costOf(u.id, lvl);
+    const next = Sim.nextMilestone(u.id, lvl);
     const div = document.createElement("div");
-    div.className = "up" + (maxed ? " maxed" : "");
-    const pips = Array.from({ length: Math.min(u.max, 10) }, (_, i) => `<s class="${i < Math.min(lvl, 10) ? "on" : ""}"></s>`).join("");
-    div.innerHTML = `<h4>${u.icon} ${u.name}${lvl > 0 ? " LV" + lvl : ""}</h4><div class="eff">${u.eff}</div><div class="pips">${pips}</div><div class="flav">${u.flavor}</div>
-      <button class="buy" ${maxed || meta.fp < cost ? "disabled" : ""}>${maxed ? "MAXED 🦅" : `BUY · 🦅 ${cost}`}</button>`;
+    div.className = "up";
+    const mile = next
+      ? `<div class="mile">⭐ NEXT AT LV ${next.lvl}: ${next.text}</div>`
+      : Sim.WEAPON_KEYS[u.id]
+        ? `<div class="mile done">ALL MILESTONES CLAIMED 🇺🇸</div>`
+        : `<div class="mile inf">∞ STACKS FOREVER</div>`;
+    div.innerHTML = `<h4>${u.icon} ${u.name} <span class="lvchip">LV ${lvl}</span></h4><div class="eff">${u.eff}</div>${mile}<div class="flav">${u.flavor}</div>
+      <button class="buy" ${meta.fp < cost ? "disabled" : ""}>BUY · 🦅 ${cost.toLocaleString("en-US")}</button>`;
     div.querySelector(".buy").onclick = () => {
       if (Sim.buy(meta, u.id)) {
         AudioSys.sfx.buy();
@@ -1536,6 +1664,7 @@ function onKey(k) {
   if (screen === SCREEN.TITLE) {
     if (k === "enter") { AudioSys.sfx.click(); setScreen(SCREEN.KART); }
     if (k === "a") { AudioSys.sfx.click(); setScreen(SCREEN.ACH); }
+    if (k === "g") { AudioSys.sfx.click(); setScreen(SCREEN.GARAGE); }
   } else if (screen === SCREEN.ACH) {
     if (k === "escape") setScreen(SCREEN.TITLE);
   } else if (screen === SCREEN.KART) {
@@ -1571,7 +1700,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden && scr
 // ============ EVENT → FX ============
 function handleEvents(events) {
   for (const ev of events) {
-    const w0 = Sim.worldOf(run.s, run.d);
+    const w0 = wo(run.s, run.d);
     if (ev.type === "round") {
       banner(`ROUND ${ev.round}: ${ev.name}`);
       AudioSys.sfx.round();
@@ -1586,13 +1715,24 @@ function handleEvents(events) {
     else if (ev.type === "scrape") { AudioSys.sfx.scrape(); shake = Math.min(1, shake + 0.12); }
     else if (ev.type === "hit") { AudioSys.sfx.hit(); shake = Math.min(1.4, shake + 0.5); popup("-" + Math.round(ev.dmg) + " ARMOR", true); }
     else if (ev.type === "rocket") AudioSys.sfx.rocket();
-    else if (ev.type === "boom") { const p = Sim.worldOf(ev.s, ev.d); puff(p.x, 1.4, p.z, 0xff8c28, 24, 20, 0.9, 1.7, 10); AudioSys.sfx.boom(); }
+    else if (ev.type === "boom") { const p = wo(ev.s, ev.d); puff(p.x, 1.4, p.z, 0xff8c28, 24, 20, 0.9, 1.7, 10); AudioSys.sfx.boom(); }
     else if (ev.type === "mine") AudioSys.sfx.mine();
     else if (ev.type === "mineBoom") { AudioSys.sfx.mineBoom(); banner("PACK STALLED! 💣"); }
-    else if (ev.type === "eagle") { AudioSys.sfx.eagle(); eagle.userData.t = 0; eagle.visible = true; }
-    else if (ev.type === "turbo") { AudioSys.sfx.turbo(); }
+    else if (ev.type === "eagle") {
+      AudioSys.sfx.eagle();
+      eagle.userData.t = 0; eagle.visible = true;
+      if (ev.eagles >= 2) { eagle2.userData.t = 0.001; eagle2.visible = true; }
+    }
+    else if (ev.type === "turbo") { AudioSys.sfx.turbo(); if (ev.spangled) popup("⭐ STAR SPANGLED — INVINCIBLE ⭐"); }
+    else if (ev.type === "freedomTrain") {
+      const p = wo(ev.s, ev.d);
+      puff(p.x, 1.2, p.z, 0xffd24a, 20, 18, 0.8, 1.3, 10);
+      popup("🚂 FREEDOM TRAIN");
+      AudioSys.sfx.slam();
+      shake = Math.min(1.2, shake + 0.2);
+    }
     else if (ev.type === "meteorWarn") {}
-    else if (ev.type === "meteorHit") { const p = Sim.worldOf(ev.s, ev.d); puff(p.x, 1, p.z, 0xff6428, 30, 24, 1, 2, 11); AudioSys.sfx.meteor(); shake = Math.min(1.4, shake + 0.4); }
+    else if (ev.type === "meteorHit") { const p = wo(ev.s, ev.d); puff(p.x, 1, p.z, 0xff6428, 30, 24, 1, 2, 11); AudioSys.sfx.meteor(); shake = Math.min(1.4, shake + 0.4); }
     else if (ev.type === "overheat") AudioSys.sfx.cd();
     else if (ev.type === "turkey") {
       AudioSys.sfx.turkey();
@@ -1600,7 +1740,7 @@ function handleEvents(events) {
       else {
         popup("FOWL PLAY 🦃");
         shake = Math.min(1, shake + 0.25);
-        const p = Sim.worldOf(ev.s, ev.d);
+        const p = wo(ev.s, ev.d);
         puff(p.x, 1, p.z, 0xffffff, 18, 12, 1, 0.9, 6);
       }
     }
@@ -1610,7 +1750,7 @@ function handleEvents(events) {
 
 // ============ RENDER SYNC ============
 function placeKart(mesh, s, d, rel, vy) {
-  const w0 = Sim.worldOf(s, d);
+  const w0 = wo(s, d);
   mesh.position.set(w0.x, vy || 0, w0.z);
   const yaw = Math.atan2(-w0.tx, -w0.tz) + (rel || 0);
   mesh.rotation.set(0, yaw, 0);
@@ -1625,17 +1765,23 @@ function syncScene(dt) {
   headlight.intensity = run.round >= 4 ? 3.2 : 0;
   // skid + sparks
   if (run.fx.slip > 1 && Math.abs(run.v) > 10) {
-    const w0 = Sim.worldOf(run.s, run.d);
+    const w0 = wo(run.s, run.d);
     puff(w0.x, 0.2, w0.z, 0xcfcfcf, 1, 3, 0.5, 0.9, 0);
     AudioSys.skidLevel(Math.min(0.35, run.fx.slip * 0.04));
   } else AudioSys.skidLevel(0);
   if (Math.abs(run.d) > 6.4) {
-    const w0 = Sim.worldOf(run.s, run.d > 0 ? 7.6 : -7.6);
+    const w0 = wo(run.s, run.d > 0 ? 7.6 : -7.6);
     puff(w0.x, 0.6, w0.z, 0xffd24a, 2, 8, 0.4, 0.7, 6);
   }
   if (run.fx.boost) {
-    const w0 = Sim.worldOf(run.s - 3, run.d);
+    const w0 = wo(run.s - 3, run.d);
     puff(w0.x, 0.8, w0.z, 0x7ac8ff, 2, 6, 0.4, 1.1, 0);
+  }
+  // STAR SPANGLED: gold pulse while invulnerable
+  invulnGlow.intensity = run.fx.invuln ? 6 + Math.sin(performance.now() * 0.02) * 3 : 0;
+  if (run.fx.invuln && Math.random() < 0.5) {
+    const w0 = wo(run.s, run.d);
+    puff(w0.x, 1.4, w0.z, 0xffd24a, 1, 6, 0.5, 0.8, 4);
   }
   // traffic
   for (let i = 0; i < trafficPool.length; i++) {
@@ -1648,11 +1794,11 @@ function syncScene(dt) {
     } else m.visible = false;
   }
   // pack
-  const packS = ((run.packTotal % Sim.TRACK.length) + Sim.TRACK.length) % Sim.TRACK.length;
+  const packS = ((run.packTotal % TRK.length) + TRK.length) % TRK.length;
   placeKart(packGroup, packS, 0, 0);
   packGroup.position.y = 0;
   if (run.fx.packGap < 120) {
-    const w0 = Sim.worldOf(packS, 0);
+    const w0 = wo(packS, 0);
     puff(w0.x, 1.5, w0.z, 0x66523a, 2, 6, 0.7, 2.2, 0);
   }
   // rockets
@@ -1666,9 +1812,9 @@ function syncScene(dt) {
     const m = minePool[i];
     if (i < run.mines.length) {
       const mn = run.mines[i];
-      const s = ((mn.sTotal % Sim.TRACK.length) + Sim.TRACK.length) % Sim.TRACK.length;
+      const s = ((mn.sTotal % TRK.length) + TRK.length) % TRK.length;
       m.visible = true;
-      const w0 = Sim.worldOf(s, run.d); m.position.set(w0.x, 0.3, w0.z);
+      const w0 = wo(s, run.d); m.position.set(w0.x, 0.3, w0.z);
       m.material.emissiveIntensity = 0.4 + 0.6 * Math.sin(performance.now() / 90);
     } else m.visible = false;
   }
@@ -1677,27 +1823,28 @@ function syncScene(dt) {
     const mm = meteorPool[i], rr = ringPool[i];
     if (run.meteors && i < run.meteors.length) {
       const mt = run.meteors[i];
-      const w0 = Sim.worldOf(mt.s, mt.d);
+      const w0 = wo(mt.s, mt.d);
       rr.visible = true; rr.position.set(w0.x, 0.05, w0.z);
       rr.material.opacity = 0.3 + 0.5 * Math.sin(performance.now() / 70);
       mm.visible = true;
       mm.position.set(w0.x + 18 * mt.t, 2 + 46 * mt.t, w0.z);
     } else { mm.visible = false; rr.visible = false; }
   }
-  // eagle swoop
-  if (eagle.userData.t >= 0) {
-    eagle.userData.t += dt;
-    const et = eagle.userData.t;
-    if (et > 1.8) { eagle.userData.t = -1; eagle.visible = false; }
+  // eagle swoop (twin eagles mirror each other at milestone level 5)
+  for (const [bird, mir] of [[eagle, 1], [eagle2, -1]]) {
+    if (bird.userData.t < 0) continue;
+    bird.userData.t += dt;
+    const et = bird.userData.t;
+    if (et > 1.8) { bird.userData.t = -1; bird.visible = false; }
     else {
-      const s = run.s + 8 + et * 30;
-      const w0 = Sim.worldOf(s, Math.sin(et * 4) * 3);
-      eagle.position.set(w0.x, 5 - Math.sin(Math.min(Math.PI, et * 2.2)) * 3.4, w0.z);
+      const s = run.s + 8 + et * 30 - (mir < 0 ? 5 : 0);
+      const w0 = wo(s, Math.sin(et * 4) * 3 * mir);
+      bird.position.set(w0.x, 5 - Math.sin(Math.min(Math.PI, et * 2.2)) * 3.4, w0.z);
       const yaw = Math.atan2(-w0.tx, -w0.tz);
-      eagle.rotation.set(0, yaw, 0);
-      eagle.userData.wl.rotation.z = Math.sin(et * 18) * 0.7;
-      eagle.userData.wr.rotation.z = -Math.sin(et * 18) * 0.7;
-      if (Math.random() < 0.4) puff(eagle.position.x, eagle.position.y, eagle.position.z, 0xffffff, 1, 4, 0.6, 0.6, 2);
+      bird.rotation.set(0, yaw, 0);
+      bird.userData.wl.rotation.z = Math.sin(et * 18) * 0.7;
+      bird.userData.wr.rotation.z = -Math.sin(et * 18) * 0.7;
+      if (Math.random() < 0.4) puff(bird.position.x, bird.position.y, bird.position.z, 0xffffff, 1, 4, 0.6, 0.6, 2);
     }
   }
   // turkeys
@@ -1705,7 +1852,7 @@ function syncScene(dt) {
     const g = turkeyPool[i];
     if (run.turkeys && i < run.turkeys.length) {
       const tk = run.turkeys[i];
-      const w0 = Sim.worldOf(tk.s, tk.d);
+      const w0 = wo(tk.s, tk.d);
       g.visible = true;
       const strut = performance.now() / 55 + i * 2;
       g.position.set(w0.x, Math.abs(Math.sin(strut)) * 0.08, w0.z);
@@ -1719,7 +1866,7 @@ function syncScene(dt) {
     const m = oilMeshes[i];
     if (run.oils && i < run.oils.length) {
       const o = run.oils[i];
-      const w0 = Sim.worldOf(o.s, o.d);
+      const w0 = wo(o.s, o.d);
       m.visible = true; m.position.set(w0.x, 0.025, w0.z);
     } else m.visible = false;
   }
@@ -1744,19 +1891,19 @@ function syncScene(dt) {
   }
   // gun tracers
   if (run.fx.firing && Math.random() < 0.6) {
-    const w0 = Sim.worldOf(run.s + 6 + Math.random() * 24, run.d);
+    const w0 = wo(run.s + 6 + Math.random() * 24, run.d);
     puff(w0.x, 1, w0.z, 0xfff06b, 1, 2, 0.15, 0.5, 0);
     if (Math.random() < 0.3) AudioSys.sfx.gun();
   }
   // camera
-  const w0 = Sim.worldOf(run.s, run.d);
-  const back = Sim.worldOf(run.s - 9, run.d * 0.7);
+  const w0 = wo(run.s, run.d);
+  const back = wo(run.s - 9, run.d * 0.7);
   const speedF = Math.min(1, Math.abs(run.v) / run.stat.topSpeed);
   camPos.lerp(new THREE.Vector3(back.x, 4.2 + speedF * 0.8, back.z), 1 - Math.pow(0.0008, dt));
   shake = Math.max(0, shake - dt * 2.2);
   const sh = shake * shake * 0.5;
   cam.position.set(camPos.x + (Math.random() - 0.5) * sh, camPos.y + (Math.random() - 0.5) * sh * 0.5, camPos.z + (Math.random() - 0.5) * sh);
-  const ahead = Sim.worldOf(run.s + 14 + speedF * 10, run.d * 0.4);
+  const ahead = wo(run.s + 14 + speedF * 10, run.d * 0.4);
   camLook.lerp(new THREE.Vector3(ahead.x, 1.2, ahead.z), 0.2);
   cam.lookAt(camLook);
   cam.fov += (62 + speedF * 16 + (run.fx.boost ? 9 : 0) - cam.fov) * 0.08;

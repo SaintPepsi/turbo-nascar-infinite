@@ -24,6 +24,19 @@ const boot = await page.evaluate(() => ({
 }));
 await page.screenshot({ path: new URL("../shots/file-title.png", import.meta.url).pathname });
 
+// garage: milestone cards must render without errors (idle-conversion UI)
+await page.keyboard.press("g");
+await page.waitForTimeout(500);
+const garage = await page.evaluate(() => ({
+  visible: !document.getElementById("garage")?.classList.contains("hidden"),
+  cards: document.querySelectorAll("#upGrid .up").length,
+  milestones: document.querySelectorAll("#upGrid .mile").length,
+  lvchips: document.querySelectorAll("#upGrid .lvchip").length,
+}));
+await page.screenshot({ path: new URL("../shots/file-garage.png", import.meta.url).pathname });
+await page.keyboard.press("Escape");
+await page.waitForTimeout(400);
+
 // play: title → kart select → race (countdown 3.2s) → drive 4s
 await page.keyboard.press("Enter");
 await page.waitForTimeout(400);
@@ -43,10 +56,12 @@ await browser.close();
 
 console.log("URL:", fileUrl);
 console.log("boot:", JSON.stringify(boot));
+console.log("garage:", JSON.stringify(garage));
 console.log("run:", JSON.stringify(inRun));
 console.log("console/page errors:", errors.length === 0 ? "NONE" : "");
 for (const e of errors.slice(0, 8)) console.log("  ✗", e);
-if (errors.length || !boot.canvas || boot.simCore !== "object" || !inRun.hudVisible) {
+if (errors.length || !boot.canvas || boot.simCore !== "object" || !inRun.hudVisible ||
+    !garage.visible || garage.cards < 13 || garage.milestones < 13 || garage.lvchips < 13) {
   console.log("SMOKE: FAIL");
   process.exit(1);
 }
