@@ -4,7 +4,7 @@
 import { chromium } from "playwright-core";
 
 const target = process.argv[2] ?? "../index.html";
-const fileUrl = "file://" + new URL(target, import.meta.url).pathname;
+const fileUrl = /^https?:\/\//.test(target) ? target : "file://" + new URL(target, import.meta.url).pathname;
 const errors: string[] = [];
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
@@ -65,4 +65,4 @@ if (errors.length || !boot.canvas || boot.simCore !== "object" || !inRun.hudVisi
   console.log("SMOKE: FAIL");
   process.exit(1);
 }
-console.log("SMOKE: PASS — game boots and drives from file:// with zero errors");
+console.log(`SMOKE: PASS — game boots and drives from ${fileUrl.split("/")[0]} with zero errors`);
