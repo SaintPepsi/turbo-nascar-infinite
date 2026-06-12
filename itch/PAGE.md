@@ -29,13 +29,32 @@ Generated, exact-size, on-palette — regenerate any time with `bun itch/generat
 | Background | `background-1920x1080.png` |
 | Embed BG (behind the game frame) | `embed-bg-1280x800.png` — or just set the color `#060f2e` |
 
-Cover dimensions follow itch's recommended 630×500 (min 315×250):
-https://itch.io/docs/creators/appearance
+**Cover image** — itch: *"used whenever itch.io wants to link to your project from another part
+of the site. Required (Minimum: 315x250, Recommended: 630x500)"*. `cover-630x500.png` is exactly
+the recommended size.
+
+## Gameplay video or trailer
+
+itch wants a **YouTube or Vimeo link** (it can't host the file). Ready-made footage:
+`trailer-60s.webm` — ~58s of real chase-cam gameplay: title → countdown → rockets/guns/turbo
+through NIGHT SHIFT → ends on the WRECKED! screen with the trophy cascade.
+
+1. Upload `trailer-60s.webm` to YouTube (visibility **Unlisted** is fine for itch embedding)
+2. Paste the watch URL into the *Gameplay video or trailer* field
+
+Regenerate anytime with `bun itch/record-trailer.ts` (needs `bun run serve`; longer cut: bump
+`DRIVE_MS`). It's silent because headless capture has no audio — YouTube's editor can lay music
+over it, or leave it mute; itch autoplays trailers muted anyway.
 
 ## Screenshots to upload
 
-From `shots/` (regenerate with `bun tests/smoke.ts` and `bun tests/bigtrack-check.ts`):
-`file-title.png`, `file-garage.png`, `file-gameplay.png`, `bigtrack-run.png`.
+itch: *"Optional but highly recommended. Upload 3 to 5 for best results."* Upload these 4 from
+`shots/`, in this order (regenerate with `bun tests/smoke.ts` and `bun tests/bigtrack-check.ts`):
+
+1. `file-gameplay.png` — racing, lead with action
+2. `file-garage.png` — the upgrade/milestone hook
+3. `bigtrack-run.png` — EMINENT DOMAIN long track
+4. `file-title.png` — title screen
 
 ## Upload & embed settings
 
